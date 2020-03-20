@@ -136,6 +136,10 @@ PG_REGISTER_WITH_RESET_FN(osdConfig_t, osdConfig, PG_OSD_CONFIG, 6);
 // be shown on the the post-flight statistics page.
 // If you reorder the stats it's likely that you'll need to make likewise updates
 // to the unit tests.
+
+// If adding new stats, please add to the osdStatsNeedAccelerometer() function
+// if the statistic utilizes the accelerometer.
+//
 const osd_stats_e osdStatsDisplayOrder[OSD_STAT_COUNT] = {
     OSD_STAT_RTC_DATE_TIME,
     OSD_STAT_TIMER_1,
@@ -303,6 +307,14 @@ void pgResetFn_osdConfig(osdConfig_t *osdConfig)
     }
     osdConfig->rssi_dbm_alarm = 60;
     osdConfig->gps_sats_show_hdop = false;
+
+    for (int i = 0; i < OSD_RCCHANNELS_COUNT; i++) {
+        osdConfig->rcChannels[i] = -1;
+    }
+
+    osdConfig->displayPortDevice = OSD_DISPLAYPORT_DEVICE_AUTO;
+
+    osdConfig->distance_alarm = 0;
 }
 
 static void osdDrawLogo(int x, int y)
@@ -942,4 +954,20 @@ statistic_t *osdGetStats(void)
 {
     return &stats;
 }
+
+#ifdef USE_ACC
+// Determine if there are any enabled stats that need
+// the ACC (currently only MAX_G_FORCE).
+static bool osdStatsNeedAccelerometer(void)
+{
+    return osdStatGetState(OSD_STAT_MAX_G_FORCE);
+}
+
+// Check if any enabled elements or stats need the ACC
+bool osdNeedsAccelerometer(void)
+{
+    return osdStatsNeedAccelerometer() || osdElementsNeedAccelerometer();
+}
+#endif // USE_ACC
+
 #endif // USE_OSD

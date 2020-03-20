@@ -42,6 +42,7 @@
 #include "drivers/time.h"
 #include "drivers/io.h"
 
+#include "io/gps.h"
 #include "io/motors.h"
 
 #include "fc/config.h"
@@ -58,10 +59,12 @@
 #include "flight/mixer.h"
 #include "flight/mixer_tricopter.h"
 #include "flight/pid.h"
+#include "flight/position.h"
 #include "flight/rpm_filter.h"
 
 #include "rx/rx.h"
 
+#include "sensors/barometer.h"
 #include "sensors/battery.h"
 #include "sensors/gyro.h"
 
@@ -74,6 +77,8 @@ PG_RESET_TEMPLATE(mixerConfig_t, mixerConfig,
     .mixerMode = DEFAULT_MIXER,
     .yaw_motors_reversed = false,
     .crashflip_motor_percent = 0,
+    .alti_cutoff = 50,
+    .alti_start_lim = 40,
 );
 
 PG_REGISTER_ARRAY(motorMixer_t, MAX_SUPPORTED_MOTORS, customMotorMixer, PG_MOTOR_MIXER, 0);
@@ -88,6 +93,8 @@ float motor_disarmed[MAX_SUPPORTED_MOTORS];
 
 mixerMode_e currentMixerMode;
 static motorMixer_t currentMixer[MAX_SUPPORTED_MOTORS];
+
+static uint8_t altiLimStatus = 0;
 
 #ifdef USE_LAUNCH_CONTROL
 static motorMixer_t launchControlMixer[MAX_SUPPORTED_MOTORS];
@@ -609,7 +616,7 @@ static void calculateThrottleAndCurrentMotorEndpoints(timeUs_t currentTimeUs)
             DEBUG_SET(DEBUG_DYN_IDLE, 1, targetRpsChangeRate);
             DEBUG_SET(DEBUG_DYN_IDLE, 2, error);
             DEBUG_SET(DEBUG_DYN_IDLE, 3, minRps);
-            
+
         }
 #endif
         currentThrottleInputRange = rcCommandThrottleRange;
@@ -669,14 +676,14 @@ static void applyFlipOverAfterCrashModeToMotors(void)
                 signPitch*currentMixer[i].pitch +
                 signRoll*currentMixer[i].roll +
                 signYaw*currentMixer[i].yaw;
-                
+
             if (motorOutputNormalised < 0) {
                 if (mixerConfig()->crashflip_motor_percent > 0) {
                     motorOutputNormalised = -motorOutputNormalised * (float)mixerConfig()->crashflip_motor_percent / 100.0f;
                 } else {
                     motorOutputNormalised = 0;
                 }
-            } 
+            }
             motorOutputNormalised = MIN(1.0f, flipPower * motorOutputNormalised);
             float motorOutput = motorOutputMin + motorOutputNormalised * motorOutputRange;
 
@@ -791,7 +798,7 @@ FAST_CODE_NOINLINE void mixTable(timeUs_t currentTimeUs, uint8_t vbatPidCompensa
         activeMixer = &launchControlMixer[0];
     }
 #endif
-    
+
     // Calculate and Limit the PID sum
     const float scaledAxisPidRoll =
         constrainf(pidData[FD_ROLL].Sum, -currentPidProfile->pidSumLimit, currentPidProfile->pidSumLimit) / PID_MIXER_SCALING;
@@ -828,7 +835,7 @@ FAST_CODE_NOINLINE void mixTable(timeUs_t currentTimeUs, uint8_t vbatPidCompensa
     // 50% throttle provides the maximum authority for yaw recovery when airmode is not active.
     // When airmode is active the throttle setting doesn't impact recovery authority.
     if (yawSpinDetected && !airmodeEnabled) {
-        throttle = 0.5f;   // 
+        throttle = 0.5f;   //
     }
 #endif // USE_YAW_SPIN_RECOVERY
 
@@ -893,6 +900,22 @@ FAST_CODE_NOINLINE void mixTable(timeUs_t currentTimeUs, uint8_t vbatPidCompensa
 #endif
     loggingThrottle = throttle;
 
+    if ( (gpsIsHealthy() && gpsSol.numSat > 7) || isBaroReady() ) {
+        if (getEstimatedAltitudeCm() > (mixerConfig()->alti_cutoff*100)){
+            throttle = 0.0f;
+            altiLimStatus = 1;
+        } else if(getEstimatedAltitudeCm() > (mixerConfig()->alti_start_lim*100)){
+            float limitingRatio = 0.4f * ((mixerConfig()->alti_cutoff*100) - getEstimatedAltitudeCm()) / ((mixerConfig()->alti_cutoff*100) - (mixerConfig()->alti_start_lim*100));
+            limitingRatio = constrainf(limitingRatio, 0.0f, 1.0f);
+            throttle = constrainf(limitingRatio, 0.0f, throttle);
+            altiLimStatus = 1;
+        } else {
+            altiLimStatus = 0;
+        }
+    } else {
+        altiLimStatus = 2;
+    }
+
     motorMixRange = motorMixMax - motorMixMin;
     if (motorMixRange > 1.0f) {
         for (int i = 0; i < motorCount; i++) {
@@ -937,4 +960,8 @@ void mixerSetThrottleAngleCorrection(int correctionValue)
 float mixerGetLoggingThrottle(void)
 {
     return loggingThrottle;
+}
+uint8_t getThrottleLimitationStatus(void)
+{
+    return altiLimStatus;
 }

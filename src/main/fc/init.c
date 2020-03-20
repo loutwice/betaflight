@@ -799,6 +799,13 @@ void init(void)
     //The OSD need to be initialised after GYRO to avoid GYRO initialisation failure on some targets
 
     if (featureIsEnabled(FEATURE_OSD)) {
+        osdDisplayPortDevice_e device = osdConfig()->displayPortDevice;
+
+        switch(device) {
+
+        case OSD_DISPLAYPORT_DEVICE_AUTO:
+            FALLTHROUGH;
+
 #if defined(USE_MAX7456)
         // If there is a max7456 chip for the OSD configured and detectd then use it.
         osdDisplayPort = max7456DisplayPortInit(vcdProfile());

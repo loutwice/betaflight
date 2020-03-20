@@ -160,11 +160,12 @@ static void taskUpdateAccelerometer(timeUs_t currentTimeUs)
 
 static void taskUpdateRxMain(timeUs_t currentTimeUs)
 {
+    static timeUs_t lastRxTimeUs;
+
     if (!processRx(currentTimeUs)) {
         return;
     }
 
-    static timeUs_t lastRxTimeUs;
     currentRxRefreshRate = constrain(currentTimeUs - lastRxTimeUs, 1000, 30000);
     lastRxTimeUs = currentTimeUs;
     isRXDataNew = true;
@@ -223,7 +224,7 @@ static void taskCameraControl(uint32_t currentTime)
 }
 #endif
 
-void fcTasksInit(void)
+void tasksInit(void)
 {
     schedulerInit();
 
@@ -293,10 +294,10 @@ void fcTasksInit(void)
 #ifdef USE_TELEMETRY
     if (featureIsEnabled(FEATURE_TELEMETRY)) {
         setTaskEnabled(TASK_TELEMETRY, true);
-        if (rxRuntimeConfig.serialrxProvider == SERIALRX_JETIEXBUS) {
+        if (rxRuntimeState.serialrxProvider == SERIALRX_JETIEXBUS) {
             // Reschedule telemetry to 500hz for Jeti Exbus
             rescheduleTask(TASK_TELEMETRY, TASK_PERIOD_HZ(500));
-        } else if (rxRuntimeConfig.serialrxProvider == SERIALRX_CRSF) {
+        } else if (rxRuntimeState.serialrxProvider == SERIALRX_CRSF) {
             // Reschedule telemetry to 500hz, 2ms for CRSF
             rescheduleTask(TASK_TELEMETRY, TASK_PERIOD_HZ(500));
         }
