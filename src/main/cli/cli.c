@@ -196,6 +196,9 @@ static bool configIsInCopy = false;
 static int8_t pidProfileIndexToUse = CURRENT_PROFILE_INDEX;
 static int8_t rateProfileIndexToUse = CURRENT_PROFILE_INDEX;
 
+static bool featureMaskIsCopied = false;
+static uint32_t featureMaskCopy;
+
 #ifdef USE_CLI_BATCH
 static bool commandBatchActive = false;
 static bool commandBatchError = false;
@@ -248,7 +251,7 @@ static const char * const featureNames[] = {
     "RANGEFINDER", "TELEMETRY", "", "3D", "RX_PARALLEL_PWM",
     "RX_MSP", "RSSI_ADC", "LED_STRIP", "DISPLAY", "OSD",
     "", "CHANNEL_FORWARDING", "TRANSPONDER", "AIRMODE",
-    "", "", "RX_SPI", "", "ESC_SENSOR", "ANTI_GRAVITY", "DYNAMIC_FILTER", NULL
+    "", "", "RX_SPI", "SOFTSPI", "ESC_SENSOR", "ANTI_GRAVITY", "DYNAMIC_FILTER", NULL
 };
 
 // sync this with rxFailsafeChannelMode_e
@@ -307,12 +310,8 @@ static void cliWriterFlush()
 }
 
 
-void cliPrint(const char *str)
+static void cliPrint(const char *str)
 {
-    if (!cliMode) {
-        return;
-    }
-
     if (cliWriter) {
         while (*str) {
             bufWriterAppend(cliWriter, *str++);
@@ -321,12 +320,12 @@ void cliPrint(const char *str)
     }
 }
 
-void cliPrintLinefeed(void)
+static void cliPrintLinefeed(void)
 {
     cliPrint("\r\n");
 }
 
-void cliPrintLine(const char *str)
+static void cliPrintLine(const char *str)
 {
     cliPrint(str);
     cliPrintLinefeed();
@@ -392,12 +391,8 @@ static bool cliDefaultPrintLinef(dumpFlags_t dumpMask, bool equalsDefault, const
     }
 }
 
-void cliPrintf(const char *format, ...)
+static void cliPrintf(const char *format, ...)
 {
-    if (!cliMode) {
-        return;
-    }
-
     va_list va;
     va_start(va, format);
     cliPrintfva(format, va);
@@ -405,12 +400,8 @@ void cliPrintf(const char *format, ...)
 }
 
 
-void cliPrintLinef(const char *format, ...)
+static void cliPrintLinef(const char *format, ...)
 {
-    if (!cliMode) {
-        return;
-    }
-
     va_list va;
     va_start(va, format);
     cliPrintfva(format, va);
@@ -677,7 +668,7 @@ static bool isWritingConfigToCopy()
 }
 
 #if defined(USE_CUSTOM_DEFAULTS)
-static bool cliProcessCustomDefaults(void);
+bool cliProcessCustomDefaults(void);
 #endif
 
 static void backupAndResetConfigs(const bool useCustomDefaults)
@@ -3010,6 +3001,23 @@ static void printName(dumpFlags_t dumpMask, const pilotConfig_t *pilotConfig)
     cliDumpPrintLinef(dumpMask, equalsDefault, "\r\n# name: %s", equalsDefault ? emptyName : pilotConfig->name);
 }
 
+static void cliName(char *cmdline)
+{
+    const unsigned int len = strlen(cmdline);
+    bool updated = false;
+    if (len > 0) {
+        memset(pilotConfigMutable()->name, 0, ARRAYLEN(pilotConfig()->name));
+        if (strncmp(cmdline, emptyName, len)) {
+            strncpy(pilotConfigMutable()->name, cmdline, MIN(len, MAX_NAME_LENGTH));
+        }
+        updated = true;
+    }
+    printName(DUMP_MASTER, pilotConfig());
+    if (updated) {
+        cliPrintLine("###WARNING: This command will be removed. Use 'set name = ' instead.###");
+    }
+}
+
 #if defined(USE_BOARD_INFO)
 
 #define ERROR_MESSAGE "%s CANNOT BE CHANGED. CURRENT VALUE: '%s'"
@@ -3129,6 +3137,15 @@ static void cliMcuId(char *cmdline)
     cliPrintLinef("mcu_id %08x%08x%08x", U_ID_0, U_ID_1, U_ID_2);
 }
 
+static uint32_t *getFeatureMask(void)
+{
+    if (featureMaskIsCopied) {
+        return &featureMaskCopy;
+    } else {
+        return &featureConfigMutable()->enabledFeatures;
+    }
+}
+
 static void printFeature(dumpFlags_t dumpMask, const uint32_t mask, const uint32_t defaultMask, const char *headingStr)
 {
     headingStr = cliPrintSectionHeading(dumpMask, false, headingStr);
@@ -3159,7 +3176,7 @@ static void printFeature(dumpFlags_t dumpMask, const uint32_t mask, const uint32
 static void cliFeature(char *cmdline)
 {
     uint32_t len = strlen(cmdline);
-    const uint32_t mask = featureConfig()->enabledFeatures;
+    const uint32_t mask = *getFeatureMask();
     if (len == 0) {
         cliPrint("Enabled: ");
         for (uint32_t i = 0; ; i++) {
@@ -3182,6 +3199,10 @@ static void cliFeature(char *cmdline)
         cliPrintLinefeed();
         return;
     } else {
+        if (!featureMaskIsCopied && !configIsInCopy) {
+            featureMaskCopy = featureConfig()->enabledFeatures;
+            featureMaskIsCopied = true;
+        }
         uint32_t feature;
 
         bool remove = false;
@@ -3213,10 +3234,10 @@ static void cliFeature(char *cmdline)
                 }
 #endif
                 if (remove) {
-                    featureConfigClear(feature);
+                    featureClear(feature, getFeatureMask());
                     cliPrint("Disabled");
                 } else {
-                    featureConfigSet(feature);
+                    featureSet(feature, getFeatureMask());
                     cliPrint("Enabled");
                 }
                 cliPrintLinef(" %s", featureNames[i]);
@@ -3323,13 +3344,13 @@ static void cliBeeper(char *cmdline)
 #if defined(USE_RX_SPI) || defined (USE_SERIALRX_SRXL2)
 void cliRxBind(char *cmdline){
     UNUSED(cmdline);
-    switch (rxRuntimeState.rxProvider) {
+    switch (rxRuntimeConfig.rxProvider) {
     default:
         cliPrint("Not supported.");
 
         break;
     case RX_PROVIDER_SERIAL:
-        switch (rxRuntimeState.serialrxProvider) {
+        switch (rxRuntimeConfig.serialrxProvider) {
         default:
             cliPrint("Not supported.");
             break;
@@ -4165,6 +4186,11 @@ static bool prepareSave(void)
     }
 #endif
 #endif // USE_BOARD_INFO
+
+    if (featureMaskIsCopied) {
+        featureDisableAll();
+        featureEnable(featureMaskCopy);
+    }
 
     return true;
 }
@@ -6056,7 +6082,7 @@ static void printConfig(char *cmdline, bool doDiff)
 #endif
 #endif
 
-            printFeature(dumpMask, featureConfig_Copy.enabledFeatures, featureConfig()->enabledFeatures, "feature");
+            printFeature(dumpMask, featureConfig_Copy.enabledFeatures, *getFeatureMask(), "feature");
 
 #if defined(USE_BEEPER)
             printBeeper(dumpMask, beeperConfig_Copy.beeper_off_flags, beeperConfig()->beeper_off_flags, "beeper", BEEPER_ALLOWED_MODES, "beeper");
@@ -6326,6 +6352,7 @@ const clicmd_t cmdTable[] = {
     CLI_COMMAND_DEF("msc", "switch into msc mode", NULL, cliMsc),
 #endif
 #endif
+    CLI_COMMAND_DEF("name", "name of craft", NULL, cliName),
 #ifndef MINIMAL_CLI
     CLI_COMMAND_DEF("play_sound", NULL, "[<index>]", cliPlaySound),
 #endif
@@ -6536,7 +6563,7 @@ void cliProcess(void)
 }
 
 #if defined(USE_CUSTOM_DEFAULTS)
-static bool cliProcessCustomDefaults(void)
+bool cliProcessCustomDefaults(void)
 {
     char *customDefaultsPtr = customDefaultsStart;
     if (processingCustomDefaults || !isCustomDefaults(customDefaultsPtr)) {

@@ -377,7 +377,7 @@ TEST_F(CustomMixerIntegrationTest, TestCustomMixer)
 
 extern "C" {
 rollAndPitchInclination_t inclination;
-rxRuntimeState_t rxRuntimeState;
+rxRuntimeConfig_t rxRuntimeConfig;
 
 int16_t axisPID[XYZ_AXIS_COUNT];
 float rcCommand[4];

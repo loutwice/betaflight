@@ -284,9 +284,7 @@ uint8_t timerInputIrq(TIM_TypeDef *tim);
 #if defined(USE_TIMER_MGMT)
 extern const resourceOwner_t freeOwner;
 
-struct timerIOConfig_s;
-
-struct timerIOConfig_s *timerIoConfigByTag(ioTag_t ioTag);
+timerIOConfig_t *timerIoConfigByTag(ioTag_t ioTag);
 const resourceOwner_t *timerGetOwner(int8_t timerNumber, uint16_t timerChannel);
 #endif
 const timerHardware_t *timerGetByTag(ioTag_t ioTag);

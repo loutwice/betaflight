@@ -140,9 +140,9 @@ static void sbusDataReceive(uint16_t c, void *data)
     }
 }
 
-static uint8_t sbusFrameStatus(rxRuntimeState_t *rxRuntimeState)
+static uint8_t sbusFrameStatus(rxRuntimeConfig_t *rxRuntimeConfig)
 {
-    sbusFrameData_t *sbusFrameData = rxRuntimeState->frameData;
+    sbusFrameData_t *sbusFrameData = rxRuntimeConfig->frameData;
     if (!sbusFrameData->done) {
         return RX_FRAME_PENDING;
     }
@@ -150,30 +150,30 @@ static uint8_t sbusFrameStatus(rxRuntimeState_t *rxRuntimeState)
 
     DEBUG_SET(DEBUG_SBUS, DEBUG_SBUS_FRAME_FLAGS, sbusFrameData->frame.frame.channels.flags);
 
-    return sbusChannelsDecode(rxRuntimeState, &sbusFrameData->frame.frame.channels);
+    return sbusChannelsDecode(rxRuntimeConfig, &sbusFrameData->frame.frame.channels);
 }
 
-bool sbusInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState)
+bool sbusInit(const rxConfig_t *rxConfig, rxRuntimeConfig_t *rxRuntimeConfig)
 {
     static uint16_t sbusChannelData[SBUS_MAX_CHANNEL];
     static sbusFrameData_t sbusFrameData;
     static uint32_t sbusBaudRate;
 
-    rxRuntimeState->channelData = sbusChannelData;
-    rxRuntimeState->frameData = &sbusFrameData;
-    sbusChannelsInit(rxConfig, rxRuntimeState);
+    rxRuntimeConfig->channelData = sbusChannelData;
+    rxRuntimeConfig->frameData = &sbusFrameData;
+    sbusChannelsInit(rxConfig, rxRuntimeConfig);
 
-    rxRuntimeState->channelCount = SBUS_MAX_CHANNEL;
+    rxRuntimeConfig->channelCount = SBUS_MAX_CHANNEL;
 
     if (rxConfig->sbus_baud_fast) {
-        rxRuntimeState->rxRefreshRate = SBUS_FAST_RX_REFRESH_RATE;
+        rxRuntimeConfig->rxRefreshRate = SBUS_FAST_RX_REFRESH_RATE;
         sbusBaudRate  = SBUS_FAST_BAUDRATE;
     } else {
-        rxRuntimeState->rxRefreshRate = SBUS_RX_REFRESH_RATE;
+        rxRuntimeConfig->rxRefreshRate = SBUS_RX_REFRESH_RATE;
         sbusBaudRate  = SBUS_BAUDRATE;
     }
 
-    rxRuntimeState->rcFrameStatusFn = sbusFrameStatus;
+    rxRuntimeConfig->rcFrameStatusFn = sbusFrameStatus;
 
     const serialPortConfig_t *portConfig = findSerialPortConfig(FUNCTION_RX_SERIAL);
     if (!portConfig) {
@@ -181,7 +181,7 @@ bool sbusInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState)
     }
 
 #ifdef USE_TELEMETRY
-    bool portShared = telemetryCheckRxPortShared(portConfig, rxRuntimeState->serialrxProvider);
+    bool portShared = telemetryCheckRxPortShared(portConfig, rxRuntimeConfig->serialrxProvider);
 #else
     bool portShared = false;
 #endif

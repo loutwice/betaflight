@@ -71,7 +71,7 @@ extern "C" {
     uint32_t targetPidLooptime;
     bool cmsInMenu = false;
     float axisPID_P[3], axisPID_I[3], axisPID_D[3], axisPIDSum[3];
-    rxRuntimeState_t rxRuntimeState = {};
+    rxRuntimeConfig_t rxRuntimeConfig = {};
 }
 
 uint32_t simulationFeatureFlags = 0;

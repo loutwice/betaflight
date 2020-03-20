@@ -225,9 +225,9 @@ static void jetiExBusDataReceive(uint16_t c, void *data)
 }
 
 // Check if it is time to read a frame from the data...
-static uint8_t jetiExBusFrameStatus(rxRuntimeState_t *rxRuntimeState)
+static uint8_t jetiExBusFrameStatus(rxRuntimeConfig_t *rxRuntimeConfig)
 {
-    UNUSED(rxRuntimeState);
+    UNUSED(rxRuntimeConfig);
 
     if (jetiExBusFrameState != EXBUS_STATE_RECEIVED)
         return RX_FRAME_PENDING;
@@ -242,23 +242,23 @@ static uint8_t jetiExBusFrameStatus(rxRuntimeState_t *rxRuntimeState)
     }
 }
 
-static uint16_t jetiExBusReadRawRC(const rxRuntimeState_t *rxRuntimeState, uint8_t chan)
+static uint16_t jetiExBusReadRawRC(const rxRuntimeConfig_t *rxRuntimeConfig, uint8_t chan)
 {
-    if (chan >= rxRuntimeState->channelCount)
+    if (chan >= rxRuntimeConfig->channelCount)
         return 0;
 
     return (jetiExBusChannelData[chan]);
 }
 
-bool jetiExBusInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState)
+bool jetiExBusInit(const rxConfig_t *rxConfig, rxRuntimeConfig_t *rxRuntimeConfig)
 {
     UNUSED(rxConfig);
 
-    rxRuntimeState->channelCount = JETIEXBUS_CHANNEL_COUNT;
-    rxRuntimeState->rxRefreshRate = 5500;
+    rxRuntimeConfig->channelCount = JETIEXBUS_CHANNEL_COUNT;
+    rxRuntimeConfig->rxRefreshRate = 5500;
 
-    rxRuntimeState->rcReadRawFn = jetiExBusReadRawRC;
-    rxRuntimeState->rcFrameStatusFn = jetiExBusFrameStatus;
+    rxRuntimeConfig->rcReadRawFn = jetiExBusReadRawRC;
+    rxRuntimeConfig->rcFrameStatusFn = jetiExBusFrameStatus;
 
     jetiExBusFrameReset();
 

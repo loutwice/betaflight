@@ -120,12 +120,7 @@ FAST_CODE void pwmDshotSetDirectionOutput(
 
 
 #ifdef USE_DSHOT_TELEMETRY
-#if defined(STM32F3)
-CCM_CODE
-#else
-FAST_CODE
-#endif
-static void pwmDshotSetDirectionInput(
+FAST_CODE static void pwmDshotSetDirectionInput(
     motorDmaOutput_t * const motor
 )
 {
@@ -188,11 +183,6 @@ void pwmCompleteDshotMotorUpdate(void)
     }
 }
 
-#if defined(STM32F3)
-CCM_CODE
-#else
-FAST_CODE
-#endif
 static void motor_DMA_IRQHandler(dmaChannelDescriptor_t *descriptor)
 {
     if (DMA_GET_FLAG_STATUS(descriptor, DMA_IT_TCIF)) {

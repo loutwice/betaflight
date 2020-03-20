@@ -20,7 +20,6 @@
 
 #pragma once
 
-#include "drivers/dma_reqmap.h"
 #include "drivers/io_types.h"
 #include "pg/pg.h"
 

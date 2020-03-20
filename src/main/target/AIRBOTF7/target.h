@@ -120,6 +120,10 @@
 #define SERIALRX_PROVIDER       SERIALRX_SBUS
 #define SERIALRX_UART           SERIAL_PORT_USART6
 
+// *************** CAM *****************************
+
+#define CAMERA_CONTROL_PIN      PA8
+
 // *************** I2C *****************************
 
 #define USE_I2C

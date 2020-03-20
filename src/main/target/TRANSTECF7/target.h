@@ -34,9 +34,7 @@
 #define PINIO1_PIN                      PB12        //VTX Power Switch
 #define USE_PINIOBOX
 
-// XXX CAMERA_CONTROL_PIN is deprecated.
-// XXX Target maintainer must create a valid timerHardware[] array entry for PB8 with TIM_USE_CAMERA_CONTROL
-//#define CAMERA_CONTROL_PIN              PB8         //Camera OSD
+#define CAMERA_CONTROL_PIN              PB8         //Camera OSD
 
 #define USE_BEEPER
 

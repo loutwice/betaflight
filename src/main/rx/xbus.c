@@ -235,9 +235,9 @@ static void xBusDataReceive(uint16_t c, void *data)
 }
 
 // Indicate time to read a frame from the data...
-static uint8_t xBusFrameStatus(rxRuntimeState_t *rxRuntimeState)
+static uint8_t xBusFrameStatus(rxRuntimeConfig_t *rxRuntimeConfig)
 {
-    UNUSED(rxRuntimeState);
+    UNUSED(rxRuntimeConfig);
 
     if (!xBusFrameReceived) {
         return RX_FRAME_PENDING;
@@ -248,12 +248,12 @@ static uint8_t xBusFrameStatus(rxRuntimeState_t *rxRuntimeState)
     return RX_FRAME_COMPLETE;
 }
 
-static uint16_t xBusReadRawRC(const rxRuntimeState_t *rxRuntimeState, uint8_t chan)
+static uint16_t xBusReadRawRC(const rxRuntimeConfig_t *rxRuntimeConfig, uint8_t chan)
 {
     uint16_t data;
 
     // Deliver the data wanted
-    if (chan >= rxRuntimeState->channelCount) {
+    if (chan >= rxRuntimeConfig->channelCount) {
         return 0;
     }
 
@@ -262,13 +262,13 @@ static uint16_t xBusReadRawRC(const rxRuntimeState_t *rxRuntimeState, uint8_t ch
     return data;
 }
 
-bool xBusInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState)
+bool xBusInit(const rxConfig_t *rxConfig, rxRuntimeConfig_t *rxRuntimeConfig)
 {
     uint32_t baudRate;
 
-    switch (rxRuntimeState->serialrxProvider) {
+    switch (rxRuntimeConfig->serialrxProvider) {
     case SERIALRX_XBUS_MODE_B:
-        rxRuntimeState->channelCount = XBUS_CHANNEL_COUNT;
+        rxRuntimeConfig->channelCount = XBUS_CHANNEL_COUNT;
         xBusFrameReceived = false;
         xBusDataIncoming = false;
         xBusFramePosition = 0;
@@ -278,7 +278,7 @@ bool xBusInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState)
         xBusProvider = SERIALRX_XBUS_MODE_B;
         break;
     case SERIALRX_XBUS_MODE_B_RJ01:
-        rxRuntimeState->channelCount = XBUS_RJ01_CHANNEL_COUNT;
+        rxRuntimeConfig->channelCount = XBUS_RJ01_CHANNEL_COUNT;
         xBusFrameReceived = false;
         xBusDataIncoming = false;
         xBusFramePosition = 0;
@@ -292,10 +292,10 @@ bool xBusInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState)
         break;
     }
 
-    rxRuntimeState->rxRefreshRate = 11000;
+    rxRuntimeConfig->rxRefreshRate = 11000;
 
-    rxRuntimeState->rcReadRawFn = xBusReadRawRC;
-    rxRuntimeState->rcFrameStatusFn = xBusFrameStatus;
+    rxRuntimeConfig->rcReadRawFn = xBusReadRawRC;
+    rxRuntimeConfig->rcFrameStatusFn = xBusFrameStatus;
 
     const serialPortConfig_t *portConfig = findSerialPortConfig(FUNCTION_RX_SERIAL);
     if (!portConfig) {
@@ -303,7 +303,7 @@ bool xBusInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState)
     }
 
 #ifdef USE_TELEMETRY
-    bool portShared = telemetryCheckRxPortShared(portConfig, rxRuntimeState->serialrxProvider);
+    bool portShared = telemetryCheckRxPortShared(portConfig, rxRuntimeConfig->serialrxProvider);
 #else
     bool portShared = false;
 #endif

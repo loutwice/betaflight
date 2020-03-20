@@ -55,3 +55,4 @@ float getRawDeflection(int axis);
 float applyCurve(int axis, float deflection);
 uint32_t getRcFrameNumber();
 float getRcCurveSlope(int axis, float deflection);
+bool rcIsDuplicateFrame();

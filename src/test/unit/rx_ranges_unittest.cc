@@ -111,80 +111,80 @@ void failsafeOnRxResume(void) {}
 uint32_t micros(void) { return 0; }
 uint32_t millis(void) { return 0; }
 
-void rxPwmInit(rxRuntimeState_t *rxRuntimeState, rcReadRawDataFnPtr *callback)
+void rxPwmInit(rxRuntimeConfig_t *rxRuntimeConfig, rcReadRawDataFnPtr *callback)
 {
-    UNUSED(rxRuntimeState);
+    UNUSED(rxRuntimeConfig);
     UNUSED(callback);
 }
 
-bool sbusInit(rxConfig_t *initialRxConfig, rxRuntimeState_t *rxRuntimeState, rcReadRawDataFnPtr *callback)
+bool sbusInit(rxConfig_t *initialRxConfig, rxRuntimeConfig_t *rxRuntimeConfig, rcReadRawDataFnPtr *callback)
 {
     UNUSED(initialRxConfig);
-    UNUSED(rxRuntimeState);
+    UNUSED(rxRuntimeConfig);
     UNUSED(callback);
     return true;
 }
 
-bool spektrumInit(rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState, rcReadRawDataFnPtr *callback)
+bool spektrumInit(rxConfig_t *rxConfig, rxRuntimeConfig_t *rxRuntimeConfig, rcReadRawDataFnPtr *callback)
 {
     UNUSED(rxConfig);
-    UNUSED(rxRuntimeState);
+    UNUSED(rxRuntimeConfig);
     UNUSED(callback);
     return true;
 }
 
-bool sumdInit(rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState, rcReadRawDataFnPtr *callback)
+bool sumdInit(rxConfig_t *rxConfig, rxRuntimeConfig_t *rxRuntimeConfig, rcReadRawDataFnPtr *callback)
 {
     UNUSED(rxConfig);
-    UNUSED(rxRuntimeState);
+    UNUSED(rxRuntimeConfig);
     UNUSED(callback);
     return true;
 }
 
-bool sumhInit(rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState, rcReadRawDataFnPtr *callback)
+bool sumhInit(rxConfig_t *rxConfig, rxRuntimeConfig_t *rxRuntimeConfig, rcReadRawDataFnPtr *callback)
 {
     UNUSED(rxConfig);
-    UNUSED(rxRuntimeState);
+    UNUSED(rxRuntimeConfig);
     UNUSED(callback);
     return true;
 }
 
-bool crsfRxInit(rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState, rcReadRawDataFnPtr *callback)
+bool crsfRxInit(rxConfig_t *rxConfig, rxRuntimeConfig_t *rxRuntimeConfig, rcReadRawDataFnPtr *callback)
 {
     UNUSED(rxConfig);
-    UNUSED(rxRuntimeState);
+    UNUSED(rxRuntimeConfig);
     UNUSED(callback);
     return true;
 }
 
-bool jetiExBusInit(rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState, rcReadRawDataFnPtr *callback)
+bool jetiExBusInit(rxConfig_t *rxConfig, rxRuntimeConfig_t *rxRuntimeConfig, rcReadRawDataFnPtr *callback)
 {
     UNUSED(rxConfig);
-    UNUSED(rxRuntimeState);
+    UNUSED(rxRuntimeConfig);
     UNUSED(callback);
     return true;
 }
 
-bool ibusInit(rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState, rcReadRawDataFnPtr *callback)
+bool ibusInit(rxConfig_t *rxConfig, rxRuntimeConfig_t *rxRuntimeConfig, rcReadRawDataFnPtr *callback)
 {
     UNUSED(rxConfig);
-    UNUSED(rxRuntimeState);
+    UNUSED(rxRuntimeConfig);
     UNUSED(callback);
     return true;
 }
 
-bool xBusInit(rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState, rcReadRawDataFnPtr *callback)
+bool xBusInit(rxConfig_t *rxConfig, rxRuntimeConfig_t *rxRuntimeConfig, rcReadRawDataFnPtr *callback)
 {
     UNUSED(rxConfig);
-    UNUSED(rxRuntimeState);
+    UNUSED(rxRuntimeConfig);
     UNUSED(callback);
     return true;
 }
 
-bool rxMspInit(rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState, rcReadRawDataFnPtr *callback)
+bool rxMspInit(rxConfig_t *rxConfig, rxRuntimeConfig_t *rxRuntimeConfig, rcReadRawDataFnPtr *callback)
 {
     UNUSED(rxConfig);
-    UNUSED(rxRuntimeState);
+    UNUSED(rxRuntimeConfig);
     UNUSED(callback);
     return true;
 }

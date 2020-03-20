@@ -20,4 +20,4 @@
 
 #pragma once
 
-bool sumdInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState);
+bool sumdInit(const rxConfig_t *rxConfig, rxRuntimeConfig_t *rxRuntimeConfig);

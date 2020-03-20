@@ -39,13 +39,42 @@
 #include "drivers/serial_uart.h"
 #include "drivers/serial_uart_impl.h"
 
+#define UART_BUFFERS(n) \
+  volatile uint8_t uart ## n ## RxBuffer[UART_RX_BUFFER_SIZE]; \
+  volatile uint8_t uart ## n ## TxBuffer[UART_TX_BUFFER_SIZE]; struct dummy_s
+
+#ifdef USE_UART1
+UART_BUFFERS(1);
+#endif
+
+#ifdef USE_UART2
+UART_BUFFERS(2);
+#endif
+
+#ifdef USE_UART3
+UART_BUFFERS(3);
+#endif
+
+#ifdef USE_UART4
+UART_BUFFERS(4);
+#endif
+
+#ifdef USE_UART5
+UART_BUFFERS(5);
+#endif
+
+#ifdef USE_UART6
+UART_BUFFERS(6);
+#endif
+
+#undef UART_BUFFERS
+
 const uartHardware_t uartHardware[UARTDEV_COUNT] = {
 #ifdef USE_UART1
     {
         .device = UARTDEV_1,
         .reg = USART1,
-        .rxDMAChannel = DMA_Channel_4,
-        .txDMAChannel = DMA_Channel_4,
+        .DMAChannel = DMA_Channel_4,
 #ifdef USE_UART1_RX_DMA
         .rxDMAResource = (dmaResource_t *)DMA2_Stream5,
 #endif
@@ -78,8 +107,7 @@ const uartHardware_t uartHardware[UARTDEV_COUNT] = {
     {
         .device = UARTDEV_2,
         .reg = USART2,
-        .rxDMAChannel = DMA_Channel_4,
-        .txDMAChannel = DMA_Channel_4,
+        .DMAChannel = DMA_Channel_4,
 #ifdef USE_UART2_RX_DMA
         .rxDMAResource = (dmaResource_t *)DMA1_Stream5,
 #endif
@@ -104,8 +132,7 @@ const uartHardware_t uartHardware[UARTDEV_COUNT] = {
     {
         .device = UARTDEV_3,
         .reg = USART3,
-        .rxDMAChannel = DMA_Channel_4,
-        .txDMAChannel = DMA_Channel_4,
+        .DMAChannel = DMA_Channel_4,
 #ifdef USE_UART3_RX_DMA
         .rxDMAResource = (dmaResource_t *)DMA1_Stream1,
 #endif
@@ -130,8 +157,7 @@ const uartHardware_t uartHardware[UARTDEV_COUNT] = {
     {
         .device = UARTDEV_4,
         .reg = UART4,
-        .rxDMAChannel = DMA_Channel_4,
-        .txDMAChannel = DMA_Channel_4,
+        .DMAChannel = DMA_Channel_4,
 #ifdef USE_UART4_RX_DMA
         .rxDMAResource = (dmaResource_t *)DMA1_Stream2,
 #endif
@@ -156,8 +182,7 @@ const uartHardware_t uartHardware[UARTDEV_COUNT] = {
     {
         .device = UARTDEV_5,
         .reg = UART5,
-        .rxDMAChannel = DMA_Channel_4,
-        .txDMAChannel = DMA_Channel_4,
+        .DMAChannel = DMA_Channel_4,
 #ifdef USE_UART5_RX_DMA
         .rxDMAResource = (dmaResource_t *)DMA1_Stream0,
 #endif
@@ -182,8 +207,7 @@ const uartHardware_t uartHardware[UARTDEV_COUNT] = {
     {
         .device = UARTDEV_6,
         .reg = USART6,
-        .rxDMAChannel = DMA_Channel_5,
-        .txDMAChannel = DMA_Channel_5,
+        .DMAChannel = DMA_Channel_5,
 #ifdef USE_UART6_RX_DMA
         .rxDMAResource = (dmaResource_t *)DMA2_Stream1,
 #endif
@@ -222,7 +246,7 @@ static void handleUsartTxDma(uartPort_t *s)
     uartTryStartTxDMA(s);
 }
 
-void uartDmaIrqHandler(dmaChannelDescriptor_t* descriptor)
+void dmaIRQHandler(dmaChannelDescriptor_t* descriptor)
 {
     uartPort_t *s = &(((uartDevice_t*)(descriptor->userParam))->port);
     if (DMA_GET_FLAG_STATUS(descriptor, DMA_IT_TCIF))
@@ -268,9 +292,21 @@ uartPort_t *serialUART(UARTDevice_e device, uint32_t baudRate, portMode_e mode, 
 
     s->USARTx = hardware->reg;
 
-#ifdef USE_DMA
-    uartConfigureDma(uart);
-#endif
+    if (hardware->rxDMAResource) {
+        dmaInit(dmaGetIdentifier(hardware->rxDMAResource), OWNER_SERIAL_RX, RESOURCE_INDEX(device));
+        s->rxDMAChannel = hardware->DMAChannel;
+        s->rxDMAResource = hardware->rxDMAResource;
+        s->rxDMAPeripheralBaseAddr = (uint32_t)&s->USARTx->DR;
+    }
+
+    if (hardware->txDMAResource) {
+        const dmaIdentifier_e identifier = dmaGetIdentifier(hardware->txDMAResource);
+        dmaInit(identifier, OWNER_SERIAL_TX, RESOURCE_INDEX(device));
+        dmaSetHandler(identifier, dmaIRQHandler, hardware->txPriority, (uint32_t)uart);
+        s->txDMAChannel = hardware->DMAChannel;
+        s->txDMAResource = hardware->txDMAResource;
+        s->txDMAPeripheralBaseAddr = (uint32_t)&s->USARTx->DR;
+    }
 
     IO_t txIO = IOGetByTag(uart->tx.pin);
     IO_t rxIO = IOGetByTag(uart->rx.pin);
@@ -294,8 +330,7 @@ uartPort_t *serialUART(UARTDevice_e device, uint32_t baudRate, portMode_e mode, 
         }
     }
 
-#ifdef USE_DMA
-    if (!(s->rxDMAResource)) {
+    if (!(s->rxDMAChannel)) {
         NVIC_InitTypeDef NVIC_InitStructure;
 
         NVIC_InitStructure.NVIC_IRQChannel = hardware->irqn;
@@ -304,7 +339,6 @@ uartPort_t *serialUART(UARTDevice_e device, uint32_t baudRate, portMode_e mode, 
         NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
         NVIC_Init(&NVIC_InitStructure);
     }
-#endif
 
     return s;
 }

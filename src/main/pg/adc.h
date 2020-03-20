@@ -24,13 +24,7 @@
 #include <stdbool.h>
 
 #include "pg/pg.h"
-#include "drivers/adc.h"
 #include "drivers/io_types.h"
-#include "drivers/dma_reqmap.h"
-
-#define MAX_ADC_SUPPORTED 4
-
-#define MAX_ADC_SUPPORTED 4
 
 typedef struct adcChannelConfig_t {
     bool enabled;
@@ -48,7 +42,7 @@ typedef struct adcConfig_s {
     uint16_t tempSensorCalibration1;
     uint16_t tempSensorCalibration2;
 
-    int8_t dmaopt[MAX_ADC_SUPPORTED]; // One per ADCDEV_x
+    uint8_t dmaopt[3]; // One per ADCDEV_x
 } adcConfig_t;
 
 PG_DECLARE(adcConfig_t, adcConfig);

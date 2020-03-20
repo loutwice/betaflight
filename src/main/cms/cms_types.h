@@ -96,8 +96,6 @@ onExit function is called with self:
 
 typedef long (*CMSMenuOnExitPtr)(const OSD_Entry *self);
 
-typedef const void * (*CMSMenuCheckRedirectPtr)(void);
-
 typedef struct
 {
 #ifdef CMS_MENU_DEBUG
@@ -107,7 +105,6 @@ typedef struct
 #endif
     const CMSMenuFuncPtr onEnter;
     const CMSMenuOnExitPtr onExit;
-    const CMSMenuCheckRedirectPtr checkRedirect;
     const OSD_Entry *entries;
 } CMS_Menu;
 

@@ -301,7 +301,6 @@ static CMS_Menu trampCmsMenuCommence = {
 #endif
     .onEnter = trampCmsCommenceOnEnter,
     .onExit = NULL,
-    .checkRedirect = NULL,
     .entries = trampCmsMenuCommenceEntries,
 };
 
@@ -329,7 +328,6 @@ CMS_Menu cmsx_menuVtxTramp = {
 #endif
     .onEnter = trampCmsOnEnter,
     .onExit = NULL,
-    .checkRedirect = NULL,
     .entries = trampMenuEntries,
 };
 #endif

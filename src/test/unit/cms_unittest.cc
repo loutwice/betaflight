@@ -127,13 +127,12 @@ static OSD_Entry menuMainEntries[] =
 };
 CMS_Menu menuMain = {
 #ifdef CMS_MENU_DEBUG
-    .GUARD_text = "MENUMAIN",
-    .GUARD_type = OME_MENU,
+    "MENUMAIN",
+    OME_MENU,
 #endif
-    .onEnter = NULL,
-    .onExit = NULL,
-    .checkRedirect = NULL,
-    .entries = menuMainEntries,
+    NULL,
+    NULL,
+    menuMainEntries,
 };
 uint8_t armingFlags;
 int16_t debug[4];

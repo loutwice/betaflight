@@ -36,8 +36,6 @@
     Add the mapping from the element ID added in the first step to the function
     created in the third step to the osdElementDrawFunction array.
 
-    If the new element utilizes the accelerometer, add it to the osdElementsNeedAccelerometer() function.
-
     Finally add a CLI parameter for the new element in cli/settings.c.
 */
 
@@ -1019,26 +1017,6 @@ static void osdElementPower(osdElementParms_t *element)
     tfp_sprintf(element->buff, "%4dW", getAmperage() * getBatteryVoltage() / 10000);
 }
 
-static void osdElementRcChannels(osdElementParms_t *element)
-{
-    const uint8_t xpos = element->elemPosX;
-    const uint8_t ypos = element->elemPosY;
-
-    for (int i = 0; i < OSD_RCCHANNELS_COUNT; i++) {
-        if (osdConfig()->rcChannels[i] >= 0) {
-            // Translate (1000, 2000) to (-1000, 1000)
-            int data = scaleRange(rcData[osdConfig()->rcChannels[i]], PWM_RANGE_MIN, PWM_RANGE_MAX, -1000, 1000);
-            // Opt for the simplest formatting for now.
-            // Decimal notation can be added when tfp_sprintf supports float among fancy options.
-            char fmtbuf[6];
-            tfp_sprintf(fmtbuf, "%5d", data);
-            displayWrite(element->osdDisplayPort, xpos, ypos + i, fmtbuf);
-        }
-    }
-
-    element->drawElement = false;  // element already drawn
-}
-
 static void osdElementRemainingTimeEstimate(osdElementParms_t *element)
 {
     const int mAhDrawn = getMAhDrawn();
@@ -1208,18 +1186,6 @@ static void osdElementWarnings(osdElementParms_t *element)
         } else {
             armingDisabledUpdateTimeUs = 0;
         }
-    }
-
-
-    // Show warning if no altitude limitation applicable
-    if (getThrottleLimitationStatus() == 2) {
-        tfp_sprintf(element->buff, "NO ALTI LIM");
-        SET_BLINK(OSD_WARNINGS);
-        return;
-    } else if(getThrottleLimitationStatus() == 1) {
-        tfp_sprintf(element->buff, "ALTI LIM");
-        SET_BLINK(OSD_WARNINGS);
-        return;
     }
 
 #ifdef USE_DSHOT
@@ -1491,7 +1457,7 @@ static const uint8_t osdElementDisplayOrder[] = {
 #ifdef USE_OSD_PROFILES
     OSD_PROFILE_NAME,
 #endif
-    OSD_RC_CHANNELS,
+
 };
 
 // Define the mapping between the OSD element id and the function to draw it
@@ -1597,7 +1563,6 @@ const osdElementDrawFn osdElementDrawFunction[OSD_ITEM_COUNT] = {
 #ifdef USE_RX_RSSI_DBM
     [OSD_RSSI_DBM_VALUE]          = osdElementRssiDbm,
 #endif
-    [OSD_RC_CHANNELS]             = osdElementRcChannels,
 };
 
 static void osdAddActiveElement(osd_items_e element)
@@ -1769,18 +1734,6 @@ void osdUpdateAlarms(void)
         CLR_BLINK(OSD_ALTITUDE);
     }
 
-#ifdef USE_GPS
-    if (sensors(SENSOR_GPS) && ARMING_FLAG(ARMED) && STATE(GPS_FIX) && STATE(GPS_FIX_HOME)) {
-        if (osdConfig()->distance_alarm && GPS_distanceToHome >= osdConfig()->distance_alarm) {
-            SET_BLINK(OSD_HOME_DIST);
-        } else {
-            CLR_BLINK(OSD_HOME_DIST);
-        }
-    } else {
-        CLR_BLINK(OSD_HOME_DIST);;
-    }
-#endif
-
 #ifdef USE_ESC_SENSOR
     if (featureIsEnabled(FEATURE_ESC_SENSOR)) {
         // This works because the combined ESC data contains the maximum temperature seen amongst all ESCs
@@ -1792,28 +1745,5 @@ void osdUpdateAlarms(void)
     }
 #endif
 }
-
-#ifdef USE_ACC
-static bool osdElementIsActive(osd_items_e element)
-{
-    for (unsigned i = 0; i < activeOsdElementCount; i++) {
-        if (activeOsdElementArray[i] == element) {
-            return true;
-        }
-    }
-    return false;
-}
-
-// Determine if any active elements need the ACC
-bool osdElementsNeedAccelerometer(void)
-{
-    return osdElementIsActive(OSD_ARTIFICIAL_HORIZON) ||
-           osdElementIsActive(OSD_PITCH_ANGLE) ||
-           osdElementIsActive(OSD_ROLL_ANGLE) ||
-           osdElementIsActive(OSD_G_FORCE) ||
-           osdElementIsActive(OSD_FLIP_ARROW);
-}
-
-#endif // USE_ACC
 
 #endif // USE_OSD

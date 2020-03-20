@@ -49,7 +49,9 @@
 
 // VTX supplied menus
 
-#include "cms/cms_menu_vtx_common.h"
+#include "cms/cms_menu_vtx_rtc6705.h"
+#include "cms/cms_menu_vtx_smartaudio.h"
+#include "cms/cms_menu_vtx_tramp.h"
 
 #include "drivers/system.h"
 
@@ -96,7 +98,6 @@ static CMS_Menu menuInfo = {
 #endif
     .onEnter = cmsx_InfoInit,
     .onExit = NULL,
-    .checkRedirect = NULL,
     .entries = menuInfoEntries
 };
 
@@ -110,8 +111,14 @@ static const OSD_Entry menuFeaturesEntries[] =
     {"BLACKBOX", OME_Submenu, cmsMenuChange, &cmsx_menuBlackbox, 0},
 #endif
 #if defined(USE_VTX_CONTROL)
-#if defined(USE_VTX_RTC6705) || defined(USE_VTX_SMARTAUDIO) || defined(USE_VTX_TRAMP)
-    {"VTX", OME_Submenu, cmsMenuChange, &cmsx_menuVtxRedirect, 0},
+#if defined(USE_VTX_RTC6705)
+    {"VTX", OME_Submenu, cmsMenuChange, &cmsx_menuVtxRTC6705, 0},
+#endif // VTX_RTC6705
+#if defined(USE_VTX_SMARTAUDIO)
+    {"VTX SA", OME_Submenu, cmsMenuChange, &cmsx_menuVtxSmartAudio, 0},
+#endif
+#if defined(USE_VTX_TRAMP)
+    {"VTX TR", OME_Submenu, cmsMenuChange, &cmsx_menuVtxTramp, 0},
 #endif
 #endif // VTX_CONTROL
 #ifdef USE_LED_STRIP
@@ -132,7 +139,6 @@ static CMS_Menu menuFeatures = {
 #endif
     .onEnter = NULL,
     .onExit = NULL,
-    .checkRedirect = NULL,
     .entries = menuFeaturesEntries,
 };
 
@@ -176,7 +182,6 @@ CMS_Menu menuMain = {
 #endif
     .onEnter = NULL,
     .onExit = NULL,
-    .checkRedirect = NULL,
     .entries = menuMainEntries,
 };
 #endif

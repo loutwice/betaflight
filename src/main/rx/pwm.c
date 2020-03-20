@@ -41,37 +41,37 @@
 #include "rx/rx.h"
 #include "rx/pwm.h"
 
-static uint16_t pwmReadRawRC(const rxRuntimeState_t *rxRuntimeState, uint8_t channel)
+static uint16_t pwmReadRawRC(const rxRuntimeConfig_t *rxRuntimeConfig, uint8_t channel)
 {
-    UNUSED(rxRuntimeState);
+    UNUSED(rxRuntimeConfig);
     return pwmRead(channel);
 }
 
-static uint16_t ppmReadRawRC(const rxRuntimeState_t *rxRuntimeState, uint8_t channel)
+static uint16_t ppmReadRawRC(const rxRuntimeConfig_t *rxRuntimeConfig, uint8_t channel)
 {
-    UNUSED(rxRuntimeState);
+    UNUSED(rxRuntimeConfig);
     return ppmRead(channel);
 }
 
-void rxPwmInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState)
+void rxPwmInit(const rxConfig_t *rxConfig, rxRuntimeConfig_t *rxRuntimeConfig)
 {
     UNUSED(rxConfig);
 
-    rxRuntimeState->rxRefreshRate = 20000;
+    rxRuntimeConfig->rxRefreshRate = 20000;
 
     // configure PWM/CPPM read function and max number of channels. serial rx below will override both of these, if enabled
-    switch (rxRuntimeState->rxProvider) {
+    switch (rxRuntimeConfig->rxProvider) {
     default:
 
         break;
     case RX_PROVIDER_PARALLEL_PWM:
-        rxRuntimeState->channelCount = MAX_SUPPORTED_RC_PARALLEL_PWM_CHANNEL_COUNT;
-        rxRuntimeState->rcReadRawFn = pwmReadRawRC;
+        rxRuntimeConfig->channelCount = MAX_SUPPORTED_RC_PARALLEL_PWM_CHANNEL_COUNT;
+        rxRuntimeConfig->rcReadRawFn = pwmReadRawRC;
 
         break;
     case RX_PROVIDER_PPM:
-        rxRuntimeState->channelCount = MAX_SUPPORTED_RC_PPM_CHANNEL_COUNT;
-        rxRuntimeState->rcReadRawFn = ppmReadRawRC;
+        rxRuntimeConfig->channelCount = MAX_SUPPORTED_RC_PPM_CHANNEL_COUNT;
+        rxRuntimeConfig->rcReadRawFn = ppmReadRawRC;
 
         break;
     }
