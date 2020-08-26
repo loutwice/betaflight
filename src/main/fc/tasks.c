@@ -189,6 +189,21 @@ static void taskUpdateBaro(timeUs_t currentTimeUs)
 }
 #endif
 
+#if defined(USE_RANGEFINDER)
+void taskUpdateRangefinder(timeUs_t currentTimeUs)
+{
+    UNUSED(currentTimeUs);
+
+    if (!sensors(SENSOR_RANGEFINDER)) {
+        return;
+    }
+
+    rangefinderUpdate();
+
+    rangefinderProcess(getCosTiltAngle());
+}
+#endif
+
 #if defined(USE_BARO) || defined(USE_GPS)
 static void taskCalculateAltitude(timeUs_t currentTimeUs)
 {
@@ -242,7 +257,7 @@ void tasksInit(void)
     const bool useBatteryAlerts = batteryConfig()->useVBatAlerts || batteryConfig()->useConsumptionAlerts || featureIsEnabled(FEATURE_OSD);
     setTaskEnabled(TASK_BATTERY_ALERTS, (useBatteryVoltage || useBatteryCurrent) && useBatteryAlerts);
 
-#ifdef STACK_CHECK
+#ifdef USE_STACK_CHECK
     setTaskEnabled(TASK_STACK_CHECK, true);
 #endif
 
@@ -320,7 +335,7 @@ void tasksInit(void)
 #endif
 
 #ifdef USE_OSD
-    setTaskEnabled(TASK_OSD, featureIsEnabled(FEATURE_OSD) && osdInitialized());
+    setTaskEnabled(TASK_OSD, featureIsEnabled(FEATURE_OSD) && osdGetDisplayPort(NULL));
 #endif
 
 #ifdef USE_BST
@@ -336,7 +351,7 @@ void tasksInit(void)
 #endif
 
 #ifdef USE_PINIOBOX
-    setTaskEnabled(TASK_PINIOBOX, true);
+    pinioBoxTaskControl();
 #endif
 
 #ifdef USE_CMS
@@ -393,7 +408,7 @@ task_t tasks[TASK_COUNT] = {
     [TASK_TRANSPONDER] = DEFINE_TASK("TRANSPONDER", NULL, NULL, transponderUpdate, TASK_PERIOD_HZ(250), TASK_PRIORITY_LOW),
 #endif
 
-#ifdef STACK_CHECK
+#ifdef USE_STACK_CHECK
     [TASK_STACK_CHECK] = DEFINE_TASK("STACKCHECK", NULL, NULL, taskStackCheck, TASK_PERIOD_HZ(10), TASK_PRIORITY_IDLE),
 #endif
 
@@ -476,7 +491,7 @@ task_t tasks[TASK_COUNT] = {
 #endif
 
 #ifdef USE_RANGEFINDER
-    [TASK_RANGEFINDER] = DEFINE_TASK("RANGEFINDER", NULL, NULL, rangefinderUpdate, TASK_PERIOD_HZ(10), TASK_PRIORITY_IDLE),
+    [TASK_RANGEFINDER] = DEFINE_TASK("RANGEFINDER", NULL, NULL, taskUpdateRangefinder, TASK_PERIOD_HZ(10), TASK_PRIORITY_IDLE),
 #endif
 };
 

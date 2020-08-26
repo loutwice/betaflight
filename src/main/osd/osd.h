@@ -21,6 +21,7 @@
 #pragma once
 
 #include "common/time.h"
+#include "common/unit.h"
 
 #include "drivers/display.h"
 
@@ -190,11 +191,6 @@ typedef enum {
 STATIC_ASSERT(OSD_STAT_COUNT <= 32, osdstats_overflow);
 
 typedef enum {
-    OSD_UNIT_IMPERIAL,
-    OSD_UNIT_METRIC
-} osd_unit_e;
-
-typedef enum {
     OSD_TIMER_1,
     OSD_TIMER_2,
     OSD_TIMER_COUNT
@@ -262,7 +258,7 @@ typedef struct osdConfig_s {
     uint16_t alt_alarm;
     uint8_t rssi_alarm;
 
-    osd_unit_e units;
+    uint8_t units;
 
     uint16_t timers[OSD_TIMER_COUNT];
     uint32_t enabledWarnings;
@@ -324,19 +320,19 @@ extern escSensorData_t *osdEscDataCombined;
 #endif
 
 void osdInit(displayPort_t *osdDisplayPort, osdDisplayPortDevice_e displayPortDevice);
-bool osdInitialized(void);
 void osdUpdate(timeUs_t currentTimeUs);
+
 void osdStatSetState(uint8_t statIndex, bool enabled);
 bool osdStatGetState(uint8_t statIndex);
+void osdSuppressStats(bool flag);
+void osdAnalyzeActiveElements(void);
+void changeOsdProfileIndex(uint8_t profileIndex);
+uint8_t getCurrentOsdProfileIndex(void);
+displayPort_t *osdGetDisplayPort(osdDisplayPortDevice_e *displayPortDevice);
+
 void osdWarnSetState(uint8_t warningIndex, bool enabled);
 bool osdWarnGetState(uint8_t warningIndex);
-void osdSuppressStats(bool flag);
-
-void osdAnalyzeActiveElements(void);
-uint8_t getCurrentOsdProfileIndex(void);
-void changeOsdProfileIndex(uint8_t profileIndex);
 bool osdElementVisible(uint16_t value);
 bool osdGetVisualBeeperState(void);
 statistic_t *osdGetStats(void);
 bool osdNeedsAccelerometer(void);
-displayPort_t *osdGetDisplayPort(osdDisplayPortDevice_e *displayPortDevice);

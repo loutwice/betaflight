@@ -42,8 +42,6 @@
 #include "drivers/time.h"
 #include "drivers/io.h"
 
-#include "io/motors.h"
-
 #include "config/config.h"
 #include "fc/controlrate_profile.h"
 #include "fc/rc_controls.h"
@@ -84,10 +82,10 @@ PG_REGISTER_ARRAY(motorMixer_t, MAX_SUPPORTED_MOTORS, customMotorMixer, PG_MOTOR
 
 #define PWM_RANGE_MID 1500
 
-static FAST_RAM_ZERO_INIT uint8_t motorCount;
-static FAST_RAM_ZERO_INIT float motorMixRange;
+static FAST_DATA_ZERO_INIT uint8_t motorCount;
+static FAST_DATA_ZERO_INIT float motorMixRange;
 
-float FAST_RAM_ZERO_INIT motor[MAX_SUPPORTED_MOTORS];
+float FAST_DATA_ZERO_INIT motor[MAX_SUPPORTED_MOTORS];
 float motor_disarmed[MAX_SUPPORTED_MOTORS];
 
 mixerMode_e currentMixerMode;
@@ -99,7 +97,7 @@ static uint8_t altiLimStatus = 0;
 static motorMixer_t launchControlMixer[MAX_SUPPORTED_MOTORS];
 #endif
 
-static FAST_RAM_ZERO_INIT int throttleAngleCorrection;
+static FAST_DATA_ZERO_INIT int throttleAngleCorrection;
 
 static const motorMixer_t mixerQuadX[] = {
     { 1.0f, -1.0f,  1.0f, -1.0f },          // REAR_R
@@ -291,20 +289,21 @@ const mixer_t mixers[] = {
 };
 #endif // !USE_QUAD_MIXER_ONLY
 
-FAST_RAM_ZERO_INIT float motorOutputHigh, motorOutputLow;
+FAST_DATA_ZERO_INIT float motorOutputHigh, motorOutputLow;
 
-static FAST_RAM_ZERO_INIT float disarmMotorOutput, deadbandMotor3dHigh, deadbandMotor3dLow;
-static FAST_RAM_ZERO_INIT float rcCommandThrottleRange;
+static FAST_DATA_ZERO_INIT float disarmMotorOutput, deadbandMotor3dHigh, deadbandMotor3dLow;
+static FAST_DATA_ZERO_INIT float rcCommandThrottleRange;
 #ifdef USE_DYN_IDLE
-static FAST_RAM_ZERO_INIT float idleMaxIncrease;
-static FAST_RAM_ZERO_INIT float idleThrottleOffset;
-static FAST_RAM_ZERO_INIT float idleMinMotorRps;
-static FAST_RAM_ZERO_INIT float idleP;
+static FAST_DATA_ZERO_INIT float idleMaxIncrease;
+static FAST_DATA_ZERO_INIT float idleThrottleOffset;
+static FAST_DATA_ZERO_INIT float idleMinMotorRps;
+static FAST_DATA_ZERO_INIT float idleP;
+static FAST_DATA_ZERO_INIT float oldMinRps;
 #endif
 #if defined(USE_BATTERY_VOLTAGE_SAG_COMPENSATION)
-static FAST_RAM_ZERO_INIT float vbatSagCompensationFactor;
-static FAST_RAM_ZERO_INIT float vbatFull;
-static FAST_RAM_ZERO_INIT float vbatRangeToCompensate;
+static FAST_DATA_ZERO_INIT float vbatSagCompensationFactor;
+static FAST_DATA_ZERO_INIT float vbatFull;
+static FAST_DATA_ZERO_INIT float vbatRangeToCompensate;
 #endif
 
 uint8_t getMotorCount(void)
@@ -363,6 +362,7 @@ void mixerInitProfile(void)
     idleMinMotorRps = currentPidProfile->idle_min_rpm * 100.0f / 60.0f;
     idleMaxIncrease = currentPidProfile->idle_max_increase * 0.001f;
     idleP = currentPidProfile->idle_p * 0.0001f;
+    oldMinRps = 0;
 #endif
 
 #if defined(USE_BATTERY_VOLTAGE_SAG_COMPENSATION)
@@ -503,13 +503,13 @@ void stopMotors(void)
     delay(50); // give the timers and ESCs a chance to react.
 }
 
-static FAST_RAM_ZERO_INIT float throttle = 0;
-static FAST_RAM_ZERO_INIT float mixerThrottle = 0;
-static FAST_RAM_ZERO_INIT float motorOutputMin;
-static FAST_RAM_ZERO_INIT float motorRangeMin;
-static FAST_RAM_ZERO_INIT float motorRangeMax;
-static FAST_RAM_ZERO_INIT float motorOutputRange;
-static FAST_RAM_ZERO_INIT int8_t motorOutputMixSign;
+static FAST_DATA_ZERO_INIT float throttle = 0;
+static FAST_DATA_ZERO_INIT float mixerThrottle = 0;
+static FAST_DATA_ZERO_INIT float motorOutputMin;
+static FAST_DATA_ZERO_INIT float motorRangeMin;
+static FAST_DATA_ZERO_INIT float motorRangeMax;
+static FAST_DATA_ZERO_INIT float motorOutputRange;
+static FAST_DATA_ZERO_INIT int8_t motorOutputMixSign;
 
 
 static void calculateThrottleAndCurrentMotorEndpoints(timeUs_t currentTimeUs)
@@ -517,9 +517,6 @@ static void calculateThrottleAndCurrentMotorEndpoints(timeUs_t currentTimeUs)
     static uint16_t rcThrottlePrevious = 0;   // Store the last throttle direction for deadband transitions
     static timeUs_t reversalTimeUs = 0; // time when motors last reversed in 3D mode
     static float motorRangeMinIncrease = 0;
-#ifdef USE_DYN_IDLE
-    static float oldMinRps;
-#endif
     float currentThrottleInputRange = 0;
 
     if (featureIsEnabled(FEATURE_3D)) {
@@ -644,7 +641,6 @@ static void calculateThrottleAndCurrentMotorEndpoints(timeUs_t currentTimeUs)
             DEBUG_SET(DEBUG_DYN_IDLE, 3, minRps);
         } else {
             motorRangeMinIncrease = 0;
-            oldMinRps = 0;
         }
 #endif
 
@@ -832,7 +828,7 @@ static void updateDynLpfCutoffs(timeUs_t currentTimeUs, float throttle)
 }
 #endif
 
-FAST_CODE_NOINLINE void mixTable(timeUs_t currentTimeUs, uint8_t vbatPidCompensation)
+FAST_CODE_NOINLINE void mixTable(timeUs_t currentTimeUs)
 {
     // Find min and max throttle based on conditions. Throttle has to be known before mixing
     calculateThrottleAndCurrentMotorEndpoints(currentTimeUs);
@@ -874,9 +870,6 @@ FAST_CODE_NOINLINE void mixTable(timeUs_t currentTimeUs, uint8_t vbatPidCompensa
         scaledAxisPidYaw = -scaledAxisPidYaw;
     }
 
-    // Calculate voltage compensation
-    const float vbatCompensationFactor = vbatPidCompensation ? calculateVbatPidCompensation() : 1.0f;
-
     // Apply the throttle_limit_percent to scale or limit the throttle based on throttle_limit_type
     if (currentControlRateProfile->throttle_limit_type != THROTTLE_LIMIT_TYPE_OFF) {
         throttle = applyThrottleLimit(throttle);
@@ -909,8 +902,6 @@ FAST_CODE_NOINLINE void mixTable(timeUs_t currentTimeUs, uint8_t vbatPidCompensa
             scaledAxisPidRoll  * activeMixer[i].roll +
             scaledAxisPidPitch * activeMixer[i].pitch +
             scaledAxisPidYaw   * activeMixer[i].yaw;
-
-        mix *= vbatCompensationFactor;  // Add voltage compensation
 
         if (mix > motorMixMax) {
             motorMixMax = mix;
@@ -1026,10 +1017,9 @@ mixerMode_e getMixerMode(void)
     return currentMixerMode;
 }
 
-
-bool isFixedWing(void)
+bool mixerModeIsFixedWing(mixerMode_e mixerMode)
 {
-    switch (currentMixerMode) {
+    switch (mixerMode) {
     case MIXER_FLYING_WING:
     case MIXER_AIRPLANE:
     case MIXER_CUSTOM_AIRPLANE:
@@ -1041,4 +1031,9 @@ bool isFixedWing(void)
 
         break;
     }
+}
+
+bool isFixedWing(void)
+{
+    return mixerModeIsFixedWing(currentMixerMode);
 }

@@ -350,7 +350,7 @@ TEST(LQTest, TestLQAlarm)
 
     // and
     // using the metric unit system
-    osdConfigMutable()->units = OSD_UNIT_METRIC;
+    osdConfigMutable()->units = UNIT_METRIC;
 
     // when
     // the craft is armed
@@ -456,6 +456,7 @@ extern "C" {
     void resetPPMDataReceivedState(void){ }
     void failsafeOnValidDataReceived(void) { }
     void failsafeOnValidDataFailed(void) { }
+    void pinioBoxTaskControl(void) { }
 
     void rxPwmInit(rxRuntimeState_t *rxRuntimeState, rcReadRawDataFnPtr *callback)
     {

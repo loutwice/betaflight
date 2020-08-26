@@ -61,6 +61,7 @@ bool cliMode = false;
 #include "drivers/accgyro/accgyro.h"
 #include "drivers/adc.h"
 #include "drivers/buf_writer.h"
+#include "drivers/bus_i2c.h"
 #include "drivers/bus_spi.h"
 #include "drivers/dma.h"
 #include "drivers/dma_reqmap.h"
@@ -228,12 +229,15 @@ static char cliBufferTemp[CLI_IN_BUFFER_SIZE];
 #define CUSTOM_DEFAULTS_CHANGESET_ID_PREFIX ", version: "
 #define CUSTOM_DEFAULTS_DATE_PREFIX ", date: "
 
+#define MAX_CHANGESET_ID_LENGTH 8
+#define MAX_DATE_LENGTH 20
+
 static bool customDefaultsHeaderParsed = false;
 static bool customDefaultsFound = false;
 static char customDefaultsManufacturerId[MAX_MANUFACTURER_ID_LENGTH + 1] = { 0 };
 static char customDefaultsBoardName[MAX_BOARD_NAME_LENGTH + 1] = { 0 };
-static char customDefaultsChangesetId[9] = { 0 };
-static char customDefaultsDate[21] = { 0 };
+static char customDefaultsChangesetId[MAX_CHANGESET_ID_LENGTH + 1] = { 0 };
+static char customDefaultsDate[MAX_DATE_LENGTH + 1] = { 0 };
 #endif
 
 #if defined(USE_CUSTOM_DEFAULTS_ADDRESS)
@@ -302,6 +306,8 @@ static const char *mcuTypeNames[] = {
     "H743 (Rev.X)",
     "H743 (Rev.V)",
 };
+
+static const char *configurationStates[] = { "UNCONFIGURED", "CUSTOM DEFAULTS", "CONFIGURED" };
 
 typedef enum dumpFlags_e {
     DUMP_MASTER = (1 << 0),
@@ -449,7 +455,7 @@ void cliPrintLinef(const char *format, ...)
 static void cliPrintErrorVa(const char *cmdName, const char *format, va_list va)
 {
     if (cliErrorWriter) {
-        cliPrintInternal(cliErrorWriter, "###ERROR: ");
+        cliPrintInternal(cliErrorWriter, "###ERROR IN ");
         cliPrintInternal(cliErrorWriter, cmdName);
         cliPrintInternal(cliErrorWriter, ": ");
 
@@ -975,7 +981,7 @@ static void cliShowInvalidArgumentCountError(const char *cmdName)
 static void cliShowArgumentRangeError(const char *cmdName, char *name, int min, int max)
 {
     if (name) {
-        cliPrintErrorLinef(cmdName, "%s: %s NOT BETWEEN %d AND %d", name, min, max);
+        cliPrintErrorLinef(cmdName, "%s NOT BETWEEN %d AND %d", name, min, max);
     } else {
         cliPrintErrorLinef(cmdName, "ARGUMENT OUT OF RANGE");
     }
@@ -4252,7 +4258,7 @@ static bool customDefaultsHasNext(const char *customDefaultsPtr)
     return *customDefaultsPtr && *customDefaultsPtr != 0xFF && customDefaultsPtr < customDefaultsEnd;
 }
 
-static const char *parseCustomDefaultsHeaderElement(char *dest, const char *customDefaultsPtr, const char *prefix, char terminator)
+static const char *parseCustomDefaultsHeaderElement(char *dest, const char *customDefaultsPtr, const char *prefix, const char terminator, const unsigned maxLength)
 {
     char *endPtr = NULL;
     unsigned len = strlen(prefix);
@@ -4263,7 +4269,7 @@ static const char *parseCustomDefaultsHeaderElement(char *dest, const char *cust
 
     if (endPtr && customDefaultsHasNext(endPtr)) {
         len = endPtr - customDefaultsPtr;
-        memcpy(dest, customDefaultsPtr, len);
+        memcpy(dest, customDefaultsPtr, MIN(len, maxLength));
 
         customDefaultsPtr += len;
 
@@ -4284,13 +4290,13 @@ static void parseCustomDefaultsHeader(void)
             customDefaultsPtr++;
         }
 
-        customDefaultsPtr = parseCustomDefaultsHeaderElement(customDefaultsManufacturerId, customDefaultsPtr, CUSTOM_DEFAULTS_MANUFACTURER_ID_PREFIX, CUSTOM_DEFAULTS_BOARD_NAME_PREFIX[0]);
+        customDefaultsPtr = parseCustomDefaultsHeaderElement(customDefaultsManufacturerId, customDefaultsPtr, CUSTOM_DEFAULTS_MANUFACTURER_ID_PREFIX, CUSTOM_DEFAULTS_BOARD_NAME_PREFIX[0], MAX_MANUFACTURER_ID_LENGTH);
 
-        customDefaultsPtr = parseCustomDefaultsHeaderElement(customDefaultsBoardName, customDefaultsPtr, CUSTOM_DEFAULTS_BOARD_NAME_PREFIX, CUSTOM_DEFAULTS_CHANGESET_ID_PREFIX[0]);
+        customDefaultsPtr = parseCustomDefaultsHeaderElement(customDefaultsBoardName, customDefaultsPtr, CUSTOM_DEFAULTS_BOARD_NAME_PREFIX, CUSTOM_DEFAULTS_CHANGESET_ID_PREFIX[0], MAX_BOARD_NAME_LENGTH);
 
-        customDefaultsPtr = parseCustomDefaultsHeaderElement(customDefaultsChangesetId, customDefaultsPtr, CUSTOM_DEFAULTS_CHANGESET_ID_PREFIX, CUSTOM_DEFAULTS_DATE_PREFIX[0]);
+        customDefaultsPtr = parseCustomDefaultsHeaderElement(customDefaultsChangesetId, customDefaultsPtr, CUSTOM_DEFAULTS_CHANGESET_ID_PREFIX, CUSTOM_DEFAULTS_DATE_PREFIX[0], MAX_CHANGESET_ID_LENGTH);
 
-        customDefaultsPtr = parseCustomDefaultsHeaderElement(customDefaultsDate, customDefaultsPtr, CUSTOM_DEFAULTS_DATE_PREFIX, '\n');
+        customDefaultsPtr = parseCustomDefaultsHeaderElement(customDefaultsDate, customDefaultsPtr, CUSTOM_DEFAULTS_DATE_PREFIX, '\n', MAX_DATE_LENGTH);
     }
 
     customDefaultsHeaderParsed = true;
@@ -4694,12 +4700,27 @@ static void cliStatus(const char *cmdName, char *cmdline)
     // Stack and config sizes and usages
 
     cliPrintf("Stack size: %d, Stack address: 0x%x", stackTotalSize(), stackHighMem());
-#ifdef STACK_CHECK
+#ifdef USE_STACK_CHECK
     cliPrintf(", Stack used: %d", stackUsedSize());
 #endif
     cliPrintLinefeed();
 
-    cliPrintLinef("Config size: %d, Max available config: %d", getEEPROMConfigSize(), getEEPROMStorageSize());
+    cliPrintLinef("Configuration: %s, size: %d, max available: %d", configurationStates[systemConfigMutable()->configurationState], getEEPROMConfigSize(), getEEPROMStorageSize());
+
+    // Devices
+#if defined(USE_SPI) || defined(USE_I2C)
+    cliPrint("Devices detected:");
+#if defined(USE_SPI)
+    cliPrintf(" SPI:%d", spiGetRegisteredDeviceCount());
+#if defined(USE_I2C)
+    cliPrint(",");
+#endif
+#endif
+#if defined(USE_I2C)
+    cliPrintf(" I2C:%d", i2cGetRegisteredDeviceCount());
+#endif
+    cliPrintLinefeed();
+#endif
 
     // Sensors
     cliPrint("Gyros detected:");
@@ -5201,24 +5222,27 @@ static void resourceCheck(uint8_t resourceIndex, uint8_t index, ioTag_t newTag)
     }
 }
 
-static bool strToPin(char *pch, ioTag_t *tag)
+static bool strToPin(char *ptr, ioTag_t *tag)
 {
-    if (strcasecmp(pch, "NONE") == 0) {
+    if (strcasecmp(ptr, "NONE") == 0) {
         *tag = IO_TAG_NONE;
+
         return true;
     } else {
-        unsigned pin = 0;
-        unsigned port = (*pch >= 'a') ? *pch - 'a' : *pch - 'A';
-
+        const unsigned port = (*ptr >= 'a') ? *ptr - 'a' : *ptr - 'A';
         if (port < 8) {
-            pch++;
-            pin = atoi(pch);
-            if (pin < 16) {
+            ptr++;
+
+            char *end;
+            const long pin = strtol(ptr, &end, 10);
+            if (end != ptr && pin >= 0 && pin < 16) {
                 *tag = DEFIO_TAG_MAKE(port, pin);
+
                 return true;
             }
         }
     }
+
     return false;
 }
 
@@ -6152,6 +6176,10 @@ static void printConfig(const char *cmdName, char *cmdline, bool doDiff)
 #endif
 #endif
 
+        printFeature(dumpMask, featureConfig_Copy.enabledFeatures, featureConfig()->enabledFeatures, "feature");
+
+        printSerial(dumpMask, &serialConfig_Copy, serialConfig(), "serial");
+
         if (!(dumpMask & HARDWARE_ONLY)) {
 #ifndef USE_QUAD_MIXER_ONLY
             const char *mixerHeadingStr = "mixer";
@@ -6178,8 +6206,6 @@ static void printConfig(const char *cmdName, char *cmdline, bool doDiff)
 #endif
 #endif
 
-            printFeature(dumpMask, featureConfig_Copy.enabledFeatures, featureConfig()->enabledFeatures, "feature");
-
 #if defined(USE_BEEPER)
             printBeeper(dumpMask, beeperConfig_Copy.beeper_off_flags, beeperConfig()->beeper_off_flags, "beeper", BEEPER_ALLOWED_MODES, "beeper");
 
@@ -6189,8 +6215,6 @@ static void printConfig(const char *cmdName, char *cmdline, bool doDiff)
 #endif // USE_BEEPER
 
             printMap(dumpMask, &rxConfig_Copy, rxConfig(), "map");
-
-            printSerial(dumpMask, &serialConfig_Copy, serialConfig(), "serial");
 
 #ifdef USE_LED_STRIP_STATUS_MODE
             printLed(dumpMask, ledStripStatusModeConfig_Copy.ledConfigs, ledStripStatusModeConfig()->ledConfigs, "led");

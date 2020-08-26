@@ -112,6 +112,8 @@ typedef enum {
     DEBUG_BLACKBOX_OUTPUT,
     DEBUG_GYRO_SAMPLE,
     DEBUG_RX_TIMING,
+    DEBUG_D_LPF,
+    DEBUG_VTX_TRAMP,
     DEBUG_COUNT
 } debugType_e;
 

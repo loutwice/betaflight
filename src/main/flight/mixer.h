@@ -108,7 +108,7 @@ void mixerInitProfile(void);
 void mixerConfigureOutput(void);
 
 void mixerResetDisarmedMotors(void);
-void mixTable(timeUs_t currentTimeUs, uint8_t vbatPidCompensation);
+void mixTable(timeUs_t currentTimeUs);
 void stopMotors(void);
 void writeMotors(void);
 
@@ -118,4 +118,5 @@ void mixerSetThrottleAngleCorrection(int correctionValue);
 float mixerGetThrottle(void);
 uint8_t getThrottleLimitationStatus(void);
 mixerMode_e getMixerMode(void);
+bool mixerModeIsFixedWing(mixerMode_e mixerMode);
 bool isFixedWing(void);

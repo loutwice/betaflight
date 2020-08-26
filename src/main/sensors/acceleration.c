@@ -47,6 +47,7 @@
 #include "drivers/accgyro/accgyro_spi_icm20649.h"
 #include "drivers/accgyro/accgyro_spi_icm20689.h"
 #include "drivers/accgyro/accgyro_spi_icm42605.h"
+#include "drivers/accgyro/accgyro_spi_lsm6dso.h"
 #include "drivers/accgyro/accgyro_spi_mpu6000.h"
 #include "drivers/accgyro/accgyro_spi_mpu6500.h"
 #include "drivers/accgyro/accgyro_spi_mpu9250.h"
@@ -87,7 +88,7 @@
 
 #define CALIBRATING_ACC_CYCLES              400
 
-FAST_RAM_ZERO_INIT acc_t acc;                       // acc access functions
+FAST_DATA_ZERO_INIT acc_t acc;                       // acc access functions
 
 void resetRollAndPitchTrims(rollAndPitchTrims_t *rollAndPitchTrims)
 {
@@ -298,6 +299,15 @@ retry:
     case ACC_BMI270:
         if (bmi270SpiAccDetect(dev)) {
             accHardware = ACC_BMI270;
+            break;
+        }
+        FALLTHROUGH;
+#endif
+
+#ifdef USE_ACCGYRO_LSM6DSO
+    case ACC_LSM6DSO:
+        if (lsm6dsoSpiAccDetect(dev)) {
+            accHardware = ACC_LSM6DSO;
             break;
         }
         FALLTHROUGH;

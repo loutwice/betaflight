@@ -51,6 +51,7 @@
 #include "flight/imu.h"
 #include "flight/mixer.h"
 #include "flight/pid.h"
+#include "flight/pid_init.h"
 #include "flight/rpm_filter.h"
 #include "flight/servos.h"
 
@@ -59,6 +60,8 @@
 #include "io/ledstrip.h"
 #include "io/serial.h"
 #include "io/vtx.h"
+
+#include "msp/msp_box.h"
 
 #include "osd/osd.h"
 
@@ -85,6 +88,8 @@
 #include "sensors/gyro.h"
 
 #include "config.h"
+
+#include "drivers/dshot.h"
 
 static bool configIsDirty; /* someone indicated that the config is modified and it is not yet saved */
 
@@ -181,6 +186,8 @@ static void activateConfig(void)
 #if defined(USE_LED_STRIP_STATUS_MODE)
     reevaluateLedConfig();
 #endif
+
+    initActiveBoxIds();
 }
 
 static void adjustFilterLimit(uint16_t *parm, uint16_t resetValue)
@@ -367,7 +374,7 @@ static void validateAndFixConfig(void)
 #endif
 
     if (
-        featureIsConfigured(FEATURE_3D) || !featureIsConfigured(FEATURE_GPS)
+        featureIsConfigured(FEATURE_3D) || !featureIsConfigured(FEATURE_GPS) || mixerModeIsFixedWing(mixerConfig()->mixerMode)
 #if !defined(USE_GPS) || !defined(USE_GPS_RESCUE)
         || true
 #endif
@@ -591,6 +598,17 @@ static void validateAndFixConfig(void)
             }
         }
     }
+
+#if defined(USE_RX_MSP_OVERRIDE)
+    for (int i = 0; i < MAX_MODE_ACTIVATION_CONDITION_COUNT; i++) {
+        const modeActivationCondition_t *mac = modeActivationConditions(i);
+        if (mac->modeId == BOXMSPOVERRIDE && ((1 << (mac->auxChannelIndex) & (rxConfig()->msp_override_channels_mask)))) {
+            rxConfigMutable()->msp_override_channels_mask &= ~(1 << (mac->auxChannelIndex + NON_AUX_CHANNEL_COUNT));
+        }
+    }
+#endif
+
+    validateAndfixMotorOutputReordering(motorConfigMutable()->dev.motorOutputReordering, MAX_SUPPORTED_MOTORS);
 }
 
 void validateAndFixGyroConfig(void)

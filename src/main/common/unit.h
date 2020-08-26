@@ -19,3 +19,9 @@
  */
 
 #pragma once
+
+typedef enum {
+    UNIT_IMPERIAL = 0,
+    UNIT_METRIC,
+    UNIT_BRITISH
+} unit_e;
