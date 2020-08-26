@@ -929,7 +929,7 @@ static void osdElementEfficiency(osdElementParms_t *element)
     int efficiency = 0;
     if (sensors(SENSOR_GPS) && ARMING_FLAG(ARMED) && STATE(GPS_FIX) && gpsSol.groundSpeed >= EFFICIENCY_MINIMUM_SPEED_CM_S) {
         const int speedX100 = osdGetSpeedToSelectedUnit(gpsSol.groundSpeed * 100); // speed * 100 for improved resolution at slow speeds
-        
+
         if (speedX100 > 0) {
             const int mAmperage = getAmperage() * 10; // Current in mA
             efficiency = mAmperage * 100 / speedX100; // mAmperage * 100 to cancel out speed * 100 from above
@@ -1308,6 +1308,17 @@ static void osdElementWarnings(osdElementParms_t *element)
             armingDisabledUpdateTimeUs = 0;
         }
     }
+
+    // Show warning if no altitude limitation applicable
+            if (getThrottleLimitationStatus() == 2) {
+                tfp_sprintf(element->buff, "NO ALTI LIM");
+                SET_BLINK(OSD_WARNINGS);
+                return;
+            } else if(getThrottleLimitationStatus() == 1) {
+                tfp_sprintf(element->buff, "ALTI LIM");
+                SET_BLINK(OSD_WARNINGS);
+                return;
+            }
 
 #ifdef USE_DSHOT
     if (isTryingToArm() && !ARMING_FLAG(ARMED)) {
