@@ -61,21 +61,15 @@
 #include "flight/mixer.h"
 
 #include "io/rcdevice_cam.h"
+#include "io/usb_cdc_hid.h"
 
 #include "pg/pg.h"
 #include "pg/pg_ids.h"
 #include "pg/rx.h"
-#ifdef USE_USB_CDC_HID
-#include "pg/usb.h"
-#endif
 
 #include "osd/osd.h"
 
 #include "rx/rx.h"
-
-#ifdef USE_USB_CDC_HID
-#include "sensors/battery.h"
-#endif
 
 // DisplayPort management
 
@@ -1202,7 +1196,7 @@ static void cmsUpdate(uint32_t currentTimeUs)
         || rcdeviceInMenu
 #endif
 #ifdef USE_USB_CDC_HID
-        || (getBatteryCellCount() == 0 && usbDevConfig()->type == COMPOSITE)
+        || cdcDeviceIsMayBeActive() // If this target is used as a joystick, we should leave here.
 #endif
        ) {
         return;
@@ -1220,7 +1214,7 @@ static void cmsUpdate(uint32_t currentTimeUs)
 
     if (!cmsInMenu) {
         // Detect menu invocation
-        if (IS_MID(THROTTLE) && IS_LO(YAW) && IS_HI(PITCH) && !ARMING_FLAG(ARMED)) {
+        if (IS_MID(THROTTLE) && IS_LO(YAW) && IS_HI(PITCH) && !ARMING_FLAG(ARMED) && !IS_RC_MODE_ACTIVE(BOXSTICKCOMMANDDISABLE)) {
             cmsMenuOpen();
             rcDelayMs = BUTTON_PAUSE;    // Tends to overshoot if BUTTON_TIME
         }
