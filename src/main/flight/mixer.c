@@ -57,6 +57,7 @@
 #include "pg/rx.h"
 
 #include "rx/rx.h"
+#include "io/gps.h"
 #include "sensors/barometer.h"
 #include "sensors/battery.h"
 #include "sensors/gyro.h"
@@ -596,6 +597,28 @@ FAST_CODE_NOINLINE void mixTable(timeUs_t currentTimeUs)
         throttle = gpsRescueGetThrottle();
     }
 #endif
+
+#ifdef USE_BARO
+if (!FLIGHT_MODE(GPS_RESCUE_MODE)){
+if ( (gpsIsHealthy() && gpsSol.numSat > 7) || isBaroReady() ) {
+      if (getEstimatedAltitudeCm() > (mixerConfig()->alti_cutoff*100)){
+          throttle = 0.0f;
+          altiLimStatus = 1;
+      } else if(getEstimatedAltitudeCm() > (mixerConfig()->alti_start_lim*100)){
+          float limitingRatio = 0.4f * ((mixerConfig()->alti_cutoff*100) - getEstimatedAltitudeCm()) / ((mixerConfig()->alti_cutoff*100) - (mixerConfig()->alti_start_lim*100));
+          limitingRatio = constrainf(limitingRatio, 0.0f, 1.0f);
+          throttle = constrainf(limitingRatio, 0.0f, throttle);
+          altiLimStatus = 1;
+      } else {
+          altiLimStatus = 0;
+      }
+  } else {
+      altiLimStatus = 2;
+  }
+}
+#endif
+
+
 
     motorMixRange = motorMixMax - motorMixMin;
     if (mixerConfig()->mixer_type > MIXER_LEGACY) {
