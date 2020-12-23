@@ -65,6 +65,7 @@
 #include "rx/ibus.h"
 #include "rx/jetiexbus.h"
 #include "rx/crsf.h"
+#include "rx/ghst.h"
 #include "rx/rx_spi.h"
 #include "rx/targetcustomserial.h"
 #include "rx/msp_override.h"
@@ -231,6 +232,11 @@ static bool serialRxInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntime
 #ifdef USE_SERIALRX_CRSF
     case SERIALRX_CRSF:
         enabled = crsfRxInit(rxConfig, rxRuntimeState);
+        break;
+#endif
+#ifdef USE_SERIALRX_GHST
+    case SERIALRX_GHST:
+        enabled = ghstRxInit(rxConfig, rxRuntimeState);
         break;
 #endif
 #ifdef USE_SERIALRX_TARGET_CUSTOM
@@ -419,7 +425,7 @@ static void setLinkQuality(bool validFrame, timeDelta_t currentDeltaTimeUs)
     static timeDelta_t resampleTimeUs = 0;
 
 #ifdef USE_RX_LINK_QUALITY_INFO
-    if (linkQualitySource != LQ_SOURCE_RX_PROTOCOL_CRSF) {
+    if (linkQualitySource == LQ_SOURCE_NONE) {
         // calculate new sample mean
         linkQuality = updateLinkQualitySamples(validFrame ? LINK_QUALITY_MAX_VALUE : 0);
     }
@@ -865,7 +871,7 @@ uint8_t rxGetRfMode(void)
 
 uint16_t rxGetLinkQualityPercent(void)
 {
-    return (linkQualitySource == LQ_SOURCE_RX_PROTOCOL_CRSF) ?  linkQuality : scaleRange(linkQuality, 0, LINK_QUALITY_MAX_VALUE, 0, 100);
+    return (linkQualitySource == LQ_SOURCE_NONE) ? scaleRange(linkQuality, 0, LINK_QUALITY_MAX_VALUE, 0, 100) : linkQuality;
 }
 #endif
 

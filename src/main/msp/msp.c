@@ -55,6 +55,7 @@
 #include "drivers/compass/compass.h"
 #include "drivers/display.h"
 #include "drivers/dshot.h"
+#include "drivers/dshot_command.h"
 #include "drivers/flash.h"
 #include "drivers/io.h"
 #include "drivers/motor.h"
@@ -1844,7 +1845,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU8(dst, currentPidProfile->motor_output_limit);
         sbufWriteU8(dst, currentPidProfile->auto_profile_cell_count);
 #if defined(USE_DYN_IDLE)
-        sbufWriteU8(dst, currentPidProfile->idle_min_rpm);
+        sbufWriteU8(dst, currentPidProfile->dyn_idle_min_rpm);
 #else
         sbufWriteU8(dst, 0);
 #endif
@@ -1859,6 +1860,11 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU8(dst, currentPidProfile->ff_boost);
 #if defined(USE_BATTERY_VOLTAGE_SAG_COMPENSATION)
         sbufWriteU8(dst, currentPidProfile->vbat_sag_compensation);
+#else
+        sbufWriteU8(dst, 0);
+#endif
+#if defined(USE_THRUST_LINEARIZATION)
+        sbufWriteU8(dst, currentPidProfile->thrustLinearization);
 #else
         sbufWriteU8(dst, 0);
 #endif
@@ -2709,12 +2715,12 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
             currentPidProfile->motor_output_limit = sbufReadU8(src);
             currentPidProfile->auto_profile_cell_count = sbufReadU8(src);
 #if defined(USE_DYN_IDLE)
-            currentPidProfile->idle_min_rpm = sbufReadU8(src);
+            currentPidProfile->dyn_idle_min_rpm = sbufReadU8(src);
 #else
             sbufReadU8(src);
 #endif
         }
-        if (sbufBytesRemaining(src) >= 4) {
+        if (sbufBytesRemaining(src) >= 5) {
             // Added in MSP API 1.44
 #if defined(USE_INTERPOLATED_SP)
             currentPidProfile->ff_interpolate_sp = sbufReadU8(src);
@@ -2726,6 +2732,11 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
             currentPidProfile->ff_boost = sbufReadU8(src);
 #if defined(USE_BATTERY_VOLTAGE_SAG_COMPENSATION)
             currentPidProfile->vbat_sag_compensation = sbufReadU8(src);
+#else
+            sbufReadU8(src);
+#endif
+#if defined(USE_THRUST_LINEARIZATION)
+            currentPidProfile->thrustLinearization = sbufReadU8(src);
 #else
             sbufReadU8(src);
 #endif
@@ -2991,6 +3002,34 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
             }
         }
         break;
+
+#ifdef USE_DSHOT
+    case MSP2_SEND_DSHOT_COMMAND:
+        {
+            const bool armed = ARMING_FLAG(ARMED);
+
+            if (!armed) {
+                const uint8_t commandType = sbufReadU8(src);
+                const uint8_t motorIndex = sbufReadU8(src);
+                const uint8_t commandCount = sbufReadU8(src);
+
+                if (DSHOT_CMD_TYPE_BLOCKING == commandType) {
+                    motorDisable();
+                }
+
+                for (uint8_t i = 0; i < commandCount; i++) {
+                    const uint8_t commandIndex = sbufReadU8(src);
+                    dshotCommandWrite(motorIndex, getMotorCount(), commandIndex, commandType);
+                    delay(1);
+                }
+
+                if (DSHOT_CMD_TYPE_BLOCKING == commandType) {
+                    motorEnable();
+                }
+            }
+        }
+        break;
+#endif
 
 #ifdef USE_CAMERA_CONTROL
     case MSP_CAMERA_CONTROL:

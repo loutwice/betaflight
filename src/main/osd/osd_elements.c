@@ -115,6 +115,7 @@
 #include "osd/osd_elements.h"
 
 #include "pg/motor.h"
+#include "pg/stats.h"
 
 #include "rx/rx.h"
 
@@ -320,7 +321,7 @@ void osdFormatDistanceString(char *ptr, int distance, char leadingSymbol)
 
 static void osdFormatPID(char * buff, const char * label, const pidf_t * pid)
 {
-    tfp_sprintf(buff, "%s %3d %3d %3d", label, pid->P, pid->I, pid->D);
+    tfp_sprintf(buff, "%s %3d %3d %3d %3d", label, pid->P, pid->I, pid->D, pid->F);
 }
 
 #ifdef USE_RTC_TIME
@@ -750,6 +751,14 @@ static void osdBackgroundDisplayName(osdElementParms_t *element)
     }
 }
 
+#ifdef USE_PERSISTENT_STATS
+static void osdElementTotalFlights(osdElementParms_t *element)
+{
+    const int32_t total_flights = statsConfig()->stats_total_flights;
+    tfp_sprintf(element->buff, "#%d", total_flights);
+}
+#endif
+
 #ifdef USE_PROFILE_NAMES
 static void osdElementRateProfileName(osdElementParms_t *element)
 {
@@ -975,6 +984,9 @@ static void osdElementLinkQuality(osdElementParms_t *element)
         osdLinkQuality = rxGetLinkQuality();
         const uint8_t osdRfMode = rxGetRfMode();
         tfp_sprintf(element->buff, "%c%1d:%2d", SYM_LINK_QUALITY, osdRfMode, osdLinkQuality);
+    } else if (linkQualitySource == LQ_SOURCE_RX_PROTOCOL_GHST) { // 0-100
+        osdLinkQuality = rxGetLinkQuality();
+        tfp_sprintf(element->buff, "%c%2d", SYM_LINK_QUALITY, osdLinkQuality);
     } else { // 0-9
         osdLinkQuality = rxGetLinkQuality() * 10 / LINK_QUALITY_MAX_VALUE;
         if (osdLinkQuality >= 10) {
@@ -1633,6 +1645,9 @@ static const uint8_t osdElementDisplayOrder[] = {
 #endif
     OSD_RC_CHANNELS,
     OSD_CAMERA_FRAME,
+#ifdef USE_PERSISTENT_STATS
+    OSD_TOTAL_FLIGHTS,
+#endif
 };
 
 // Define the mapping between the OSD element id and the function to draw it
@@ -1743,6 +1758,9 @@ const osdElementDrawFn osdElementDrawFunction[OSD_ITEM_COUNT] = {
 #ifdef USE_GPS
     [OSD_EFFICIENCY]              = osdElementEfficiency,
 #endif
+#ifdef USE_PERSISTENT_STATS
+    [OSD_TOTAL_FLIGHTS]   = osdElementTotalFlights,
+#endif
 };
 
 // Define the mapping between the OSD element id and the function to draw its background (static part)
@@ -1807,6 +1825,10 @@ void osdAddActiveElements(void)
         osdAddActiveElement(OSD_ESC_RPM);
         osdAddActiveElement(OSD_ESC_RPM_FREQ);
     }
+#endif
+
+#ifdef USE_PERSISTENT_STATS
+    osdAddActiveElement(OSD_TOTAL_FLIGHTS);
 #endif
 }
 

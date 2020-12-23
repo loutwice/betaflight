@@ -60,6 +60,13 @@ typedef enum mixerMode
     MIXER_QUADX_1234 = 26
 } mixerMode_e;
 
+typedef enum mixerType
+{
+    MIXER_LEGACY = 0,
+    MIXER_LINEAR = 1,
+    MIXER_DYNAMIC = 2,
+} mixerType_e;
+
 // Custom mixer data per motor
 typedef struct motorMixer_s {
     float throttle;
@@ -84,6 +91,7 @@ typedef struct mixerConfig_s {
     uint8_t crashflip_expo;
     uint16_t alti_cutoff;
     uint16_t alti_start_lim;
+    uint8_t mixer_type;
 } mixerConfig_t;
 
 PG_DECLARE(mixerConfig_t, mixerConfig);
@@ -103,8 +111,6 @@ void mixerLoadMix(int index, motorMixer_t *customMixers);
 void initEscEndpoints(void);
 void mixerInit(mixerMode_e mixerMode);
 void mixerInitProfile(void);
-
-void mixerConfigureOutput(void);
 
 void mixerResetDisarmedMotors(void);
 void mixTable(timeUs_t currentTimeUs);

@@ -305,6 +305,8 @@ static const char *mcuTypeNames[] = {
     "H743 (Rev.Y)",
     "H743 (Rev.X)",
     "H743 (Rev.V)",
+    "H7A3",
+    "H723/H725",
 };
 
 static const char *configurationStates[] = { "UNCONFIGURED", "CUSTOM DEFAULTS", "CONFIGURED" };
@@ -1776,6 +1778,7 @@ static void printMotorMix(dumpFlags_t dumpMask, const motorMixer_t *customMotorM
 static void cliMotorMix(const char *cmdName, char *cmdline)
 {
 #ifdef USE_QUAD_MIXER_ONLY
+    UNUSED(cmdName);
     UNUSED(cmdline);
 #else
     int check = 0;
