@@ -19,11 +19,13 @@ variables:
 
 name: $(Build.RequestedFor)_$(Build.SourceBranchName)_$(BuildID)
 
+# For some reason the trigger does not pick up on "*-maintenance" - manually adding the current maintenance branch for now
 trigger:
   batch: true
   branches:
     include:
     - master
+    - 4.2-maintenance
     - "*-maintenance"
 
 pr:
@@ -31,6 +33,7 @@ pr:
   branches:
     include:
     - master
+    - 4.2-maintenance
     - "*-maintenance"
 
 stages:
@@ -42,8 +45,14 @@ stages:
     steps:
     - script: make arm_sdk_install
       displayName: 'Install the build toolchain'
-    - script: make all
-      displayName: 'Build the Unified Targets'
+    - script: sudo apt-get install -y libblocksruntime-dev
+      displayName: 'Install extra packages'
+    - script: make  EXTRA_FLAGS=-Werror checks
+      displayName: 'Run sanity checks'
+    - script: make  EXTRA_FLAGS=-Werror test-all
+      displayName: 'Run all unit tests'
+    - script: make  EXTRA_FLAGS=-Werror all
+      displayName: 'Build all oficial targets'
     - script: mkdir release; cp obj/*.hex release/
       displayName: 'Copy artefacts'
     - task: PublishPipelineArtifact@1

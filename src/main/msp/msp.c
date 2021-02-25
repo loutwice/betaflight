@@ -47,6 +47,7 @@
 #include "config/config.h"
 #include "config/config_eeprom.h"
 #include "config/feature.h"
+#include "config/simplified_tuning.h"
 
 #include "drivers/accgyro/accgyro.h"
 #include "drivers/bus_i2c.h"
@@ -111,6 +112,7 @@
 
 #include "osd/osd.h"
 #include "osd/osd_elements.h"
+#include "osd/osd_warnings.h"
 
 #include "pg/beeper.h"
 #include "pg/board.h"
@@ -1201,6 +1203,37 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         }
         break;
 
+#ifdef USE_VTX_COMMON
+    case MSP2_GET_VTX_DEVICE_STATUS:
+        {
+            const vtxDevice_t *vtxDevice = vtxCommonDevice();
+            vtxCommonSerializeDeviceStatus(vtxDevice, dst);
+        }
+        break;
+#endif
+
+#ifdef USE_OSD
+    case MSP2_GET_OSD_WARNINGS:
+        {
+            bool isBlinking;
+            uint8_t displayAttr;
+            char warningsBuffer[OSD_FORMAT_MESSAGE_BUFFER_SIZE];
+
+            renderOsdWarning(warningsBuffer, &isBlinking, &displayAttr);
+            const uint8_t warningsLen = strlen(warningsBuffer);
+
+            if (isBlinking) {
+                displayAttr |= DISPLAYPORT_ATTR_BLINK;
+            }
+            sbufWriteU8(dst, displayAttr);  // see displayPortAttr_e
+            sbufWriteU8(dst, warningsLen);  // length byte followed by the actual characters
+            for (unsigned i = 0; i < warningsLen; i++) {
+                sbufWriteU8(dst, warningsBuffer[i]);
+            }
+            break;
+        }
+#endif
+
     case MSP_RC:
         for (int i = 0; i < rxRuntimeState.channelCount; i++) {
             sbufWriteU16(dst, rcData[i]);
@@ -2086,6 +2119,28 @@ static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_
         }
         break;
 #endif // USE_VTX_TABLE
+
+#ifdef USE_SIMPLIFIED_TUNING
+    // Added in MSP API 1.44
+    case MSP_SIMPLIFIED_TUNING:
+        {
+            sbufWriteU8(dst, currentPidProfile->simplified_pids_mode);
+            sbufWriteU8(dst, currentPidProfile->simplified_master_multiplier);
+            sbufWriteU8(dst, currentPidProfile->simplified_roll_pitch_ratio);
+            sbufWriteU8(dst, currentPidProfile->simplified_i_gain);
+            sbufWriteU8(dst, currentPidProfile->simplified_pd_ratio);
+            sbufWriteU8(dst, currentPidProfile->simplified_pd_gain);
+            sbufWriteU8(dst, currentPidProfile->simplified_dmin_ratio);
+            sbufWriteU8(dst, currentPidProfile->simplified_ff_gain);
+
+            sbufWriteU8(dst, currentPidProfile->simplified_dterm_filter);
+            sbufWriteU8(dst, currentPidProfile->simplified_dterm_filter_multiplier);
+
+            sbufWriteU8(dst, gyroConfig()->simplified_gyro_filter);
+            sbufWriteU8(dst, gyroConfig()->simplified_gyro_filter_multiplier);
+        }
+        break;
+#endif
 
     case MSP_RESET_CONF:
         {
@@ -3020,7 +3075,6 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
                 for (uint8_t i = 0; i < commandCount; i++) {
                     const uint8_t commandIndex = sbufReadU8(src);
                     dshotCommandWrite(motorIndex, getMotorCount(), commandIndex, commandType);
-                    delay(1);
                 }
 
                 if (DSHOT_CMD_TYPE_BLOCKING == commandType) {
@@ -3028,6 +3082,29 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
                 }
             }
         }
+        break;
+#endif
+
+#ifdef USE_SIMPLIFIED_TUNING
+    // Added in MSP API 1.44
+    case MSP_SET_SIMPLIFIED_TUNING:
+        currentPidProfile->simplified_pids_mode = sbufReadU8(src);
+        currentPidProfile->simplified_master_multiplier = sbufReadU8(src);
+        currentPidProfile->simplified_roll_pitch_ratio = sbufReadU8(src);
+        currentPidProfile->simplified_i_gain = sbufReadU8(src);
+        currentPidProfile->simplified_pd_ratio = sbufReadU8(src);
+        currentPidProfile->simplified_pd_gain = sbufReadU8(src);
+        currentPidProfile->simplified_dmin_ratio = sbufReadU8(src);
+        currentPidProfile->simplified_ff_gain = sbufReadU8(src);
+
+        currentPidProfile->simplified_dterm_filter = sbufReadU8(src);
+        currentPidProfile->simplified_dterm_filter_multiplier = sbufReadU8(src);
+
+        gyroConfigMutable()->simplified_gyro_filter = sbufReadU8(src);
+        gyroConfigMutable()->simplified_gyro_filter_multiplier = sbufReadU8(src);
+
+        applySimplifiedTuning(currentPidProfile);
+
         break;
 #endif
 
