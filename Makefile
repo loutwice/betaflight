@@ -83,10 +83,7 @@ include $(ROOT)/make/system-id.mk
 include $(ROOT)/make/checks.mk
 
 # configure some directories that are relative to wherever ROOT_DIR is located
-ifndef TOOLS_DIR
-TOOLS_DIR := $(ROOT)/tools
-endif
-BUILD_DIR := $(ROOT)/build
+TOOLS_DIR ?= $(ROOT)/tools
 DL_DIR    := $(ROOT)/downloads
 
 export RM := rm
@@ -347,7 +344,7 @@ $(TARGET_HEX): $(TARGET_ELF)
 
 $(TARGET_DFU): $(TARGET_HEX)
 	@echo "Creating DFU $(TARGET_DFU)" "$(STDOUT)"
-	$(V1) $(DFUSE-PACK) -i $< $@
+	$(V1) $(PYTHON) $(DFUSE-PACK) -i $< $@
 
 else
 CLEAN_ARTIFACTS += $(TARGET_UNPATCHED_BIN) $(TARGET_EXST_HASH_SECTION_FILE) $(TARGET_EXST_ELF)
@@ -579,9 +576,6 @@ $(DL_DIR):
 	mkdir -p $@
 
 $(TOOLS_DIR):
-	mkdir -p $@
-
-$(BUILD_DIR):
 	mkdir -p $@
 
 ## version           : print firmware version

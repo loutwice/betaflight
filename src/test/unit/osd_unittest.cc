@@ -28,39 +28,40 @@ extern "C" {
     #include "blackbox/blackbox.h"
     #include "blackbox/blackbox_io.h"
 
-    #include "config/feature.h"
-
-    #include "pg/pg.h"
-    #include "pg/pg_ids.h"
-    #include "pg/rx.h"
-
     #include "common/time.h"
+
+    #include "config/config.h"
+    #include "config/feature.h"
 
     #include "drivers/osd_symbols.h"
     #include "drivers/persistent.h"
     #include "drivers/serial.h"
 
-    #include "config/config.h"
     #include "fc/core.h"
     #include "fc/rc_controls.h"
     #include "fc/rc_modes.h"
     #include "fc/runtime_config.h"
 
     #include "flight/gps_rescue.h"
-    #include "flight/pid.h"
     #include "flight/imu.h"
+    #include "flight/mixer.h"
+    #include "flight/pid.h"
 
     #include "io/beeper.h"
     #include "io/gps.h"
 
     #include "osd/osd.h"
     #include "osd/osd_elements.h"
+    #include "osd/osd_warnings.h"
+
+    #include "pg/pg.h"
+    #include "pg/pg_ids.h"
+    #include "pg/rx.h"
 
     #include "sensors/acceleration.h"
     #include "sensors/battery.h"
 
     #include "rx/rx.h"
-    #include "flight/mixer.h"
 
     void osdRefresh(timeUs_t currentTimeUs);
     void osdFormatTime(char * buff, osd_timer_precision_e precision, timeUs_t time);
@@ -68,6 +69,8 @@ extern "C" {
 
     uint16_t rssi;
     attitudeEulerAngles_t attitude;
+    float rMat[3][3];
+
     pidProfile_t *currentPidProfile;
     int16_t debug[DEBUG16_VALUE_COUNT];
     int16_t rcData[MAX_SUPPORTED_RC_CHANNEL_COUNT];
@@ -260,7 +263,7 @@ void simulateFlight(void)
     GPS_distanceToHome = 100;
     GPS_distanceFlownInCm = 10000;
     simulationBatteryVoltage = 1470;
-    simulationAltitude = 200;
+    simulationAltitude = 200; // converts to 6.56168 feet which rounds to 6.6 in imperial units stats test
     simulationTime += 1e6;
     osdRefresh(simulationTime);
 
@@ -498,7 +501,7 @@ TEST_F(OsdTest, TestStatsImperial)
     // then
     // statistics screen should display the following
     int row = 5;
-    displayPortTestBufferSubstring(2, row++, "MAX ALTITUDE      : 6.5%c", SYM_FT);
+    displayPortTestBufferSubstring(2, row++, "MAX ALTITUDE      : 6.6%c", SYM_FT);
     displayPortTestBufferSubstring(2, row++, "MAX SPEED         : 17");
     displayPortTestBufferSubstring(2, row++, "MAX DISTANCE      : 3772%c", SYM_FT);
     displayPortTestBufferSubstring(2, row++, "FLIGHT DISTANCE   : 6.52%c", SYM_MILES);
@@ -673,7 +676,7 @@ TEST_F(OsdTest, TestAlarms)
         printf("%d\n", i);
         displayPortTestPrint();
 #endif
-        if (i % 2 == 0) {
+        if (i % 2 == 1) {
             displayPortTestBufferSubstring(8,  1, "%c12", SYM_RSSI);
             displayPortTestBufferSubstring(12, 1, "%c13.5%c", SYM_MAIN_BATT, SYM_VOLT);
             displayPortTestBufferSubstring(1,  1, "%c02:", SYM_FLY_M); // only test the minute part of the timer
@@ -902,28 +905,28 @@ TEST_F(OsdTest, TestElementAltitude)
     displayPortTestBufferSubstring(23, 7, "%c0.0%c", SYM_ALTITUDE, SYM_M);
 
     // when
-    simulationAltitude = 247;
+    simulationAltitude = 247;  // rounds to 2.5m
     displayClearScreen(&testDisplayPort);
     osdRefresh(simulationTime);
 
     // then
-    displayPortTestBufferSubstring(23, 7, "%c2.4%c", SYM_ALTITUDE, SYM_M);
+    displayPortTestBufferSubstring(23, 7, "%c2.5%c", SYM_ALTITUDE, SYM_M);
 
     // when
-    simulationAltitude = 4247;
+    simulationAltitude = 4247;  // rounds to 42.5m
     displayClearScreen(&testDisplayPort);
     osdRefresh(simulationTime);
 
     // then
-    displayPortTestBufferSubstring(23, 7, "%c42.4%c", SYM_ALTITUDE, SYM_M);
+    displayPortTestBufferSubstring(23, 7, "%c42.5%c", SYM_ALTITUDE, SYM_M);
 
     // when
-    simulationAltitude = -247;
+    simulationAltitude = -247;  // rounds to -2.5m
     displayClearScreen(&testDisplayPort);
     osdRefresh(simulationTime);
 
     // then
-    displayPortTestBufferSubstring(23, 7, "%c-2.4%c", SYM_ALTITUDE, SYM_M);
+    displayPortTestBufferSubstring(23, 7, "%c-2.5%c", SYM_ALTITUDE, SYM_M);
 
     // when
     simulationAltitude = -70;
@@ -1043,6 +1046,7 @@ TEST_F(OsdTest, TestElementWarningsBattery)
 
     // when
     displayClearScreen(&testDisplayPort);
+    osdRefresh(simulationTime);
     osdRefresh(simulationTime);
 
     // then

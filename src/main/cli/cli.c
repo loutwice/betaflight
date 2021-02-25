@@ -57,6 +57,7 @@ bool cliMode = false;
 #include "config/config.h"
 #include "config/config_eeprom.h"
 #include "config/feature.h"
+#include "config/simplified_tuning.h"
 
 #include "drivers/accgyro/accgyro.h"
 #include "drivers/adc.h"
@@ -305,6 +306,8 @@ static const char *mcuTypeNames[] = {
     "H743 (Rev.Y)",
     "H743 (Rev.X)",
     "H743 (Rev.V)",
+    "H7A3",
+    "H723/H725",
 };
 
 static const char *configurationStates[] = { "UNCONFIGURED", "CUSTOM DEFAULTS", "CONFIGURED" };
@@ -1776,6 +1779,7 @@ static void printMotorMix(dumpFlags_t dumpMask, const motorMixer_t *customMotorM
 static void cliMotorMix(const char *cmdName, char *cmdline)
 {
 #ifdef USE_QUAD_MIXER_ONLY
+    UNUSED(cmdName);
     UNUSED(cmdline);
 #else
     int check = 0;
@@ -3090,6 +3094,17 @@ static void cliVtxInfo(const char *cmdName, char *cmdline)
 }
 #endif // USE_VTX_TABLE
 
+#ifdef USE_SIMPLIFIED_TUNING
+static void cliApplySimplifiedTuning(const char *cmdName, char *cmdline)
+{
+    UNUSED(cmdName);
+    UNUSED(cmdline);
+
+    applySimplifiedTuning(currentPidProfile);
+    cliPrintLine("Applied tuning based on simplified tuning settings.");
+}
+#endif
+
 static void printName(dumpFlags_t dumpMask, const pilotConfig_t *pilotConfig)
 {
     const bool equalsDefault = strlen(pilotConfig->name) == 0;
@@ -3846,12 +3861,6 @@ static void cliDshotProg(const char *cmdName, char *cmdline)
                     if (firstCommand) {
                         // pwmDisableMotors();
                         motorDisable();
-
-                        if (command == DSHOT_CMD_ESC_INFO) {
-                            delay(5); // Wait for potential ESC telemetry transmission to finish
-                        } else {
-                            delay(1);
-                        }
 
                         firstCommand = false;
                     }
@@ -6388,6 +6397,9 @@ static void cliHelp(const char *cmdName, char *cmdline);
 // should be sorted a..z for bsearch()
 const clicmd_t cmdTable[] = {
     CLI_COMMAND_DEF("adjrange", "configure adjustment ranges", "<index> <unused> <range channel> <start> <end> <function> <select channel> [<center> <scale>]", cliAdjustmentRange),
+#ifdef USE_SIMPLIFIED_TUNING
+    CLI_COMMAND_DEF("apply_simplified_tuning", "applies tuning based on simplified tuning settings", NULL, cliApplySimplifiedTuning),
+#endif
     CLI_COMMAND_DEF("aux", "configure modes", "<index> <mode> <aux> <start> <end> <logic>", cliAux),
 #ifdef USE_CLI_BATCH
     CLI_COMMAND_DEF("batch", "start or end a batch of commands", "start | end", cliBatch),

@@ -48,7 +48,6 @@
 #endif
 
 #ifdef STM32F4
-#define USE_SRAM2
 #if defined(STM32F40_41xxx)
 #define USE_FAST_DATA
 #endif
@@ -70,8 +69,7 @@
 #define USE_TIMER_MGMT
 #define USE_PERSISTENT_OBJECTS
 #define USE_CUSTOM_DEFAULTS_ADDRESS
-// Re-enable this after 4.0 has been released, and remove the define from STM32F4DISCOVERY
-//#define USE_SPI_TRANSACTION
+#define USE_SPI_TRANSACTION
 
 #if defined(STM32F40_41xxx) || defined(STM32F411xE)
 #define USE_OVERCLOCK
@@ -80,7 +78,6 @@
 #endif // STM32F4
 
 #ifdef STM32F7
-#define USE_SRAM2
 #define USE_ITCM_RAM
 #define USE_FAST_DATA
 #define USE_DSHOT
@@ -102,8 +99,7 @@
 #define USE_TIMER_MGMT
 #define USE_PERSISTENT_OBJECTS
 #define USE_CUSTOM_DEFAULTS_ADDRESS
-// Re-enable this after 4.0 has been released, and remove the define from STM32F4DISCOVERY
-//#define USE_SPI_TRANSACTION
+#define USE_SPI_TRANSACTION
 #endif // STM32F7
 
 #ifdef STM32H7
@@ -124,6 +120,10 @@
 #define USE_TIMER_MGMT
 #define USE_PERSISTENT_OBJECTS
 #define USE_DMA_RAM
+#define USE_USB_MSC
+#define USE_RTC_TIME
+#define USE_PERSISTENT_MSC_RTC
+#define USE_DSHOT_CACHE_MGMT
 #endif
 
 #ifdef STM32G4
@@ -196,12 +196,6 @@
 #define PERSISTENT                  __attribute__ ((section(".persistent_data"), aligned(4)))
 #endif
 
-#ifdef USE_SRAM2
-#define SRAM2                       __attribute__ ((section(".sram2"), aligned(4)))
-#else
-#define SRAM2
-#endif
-
 #ifdef USE_DMA_RAM
 #if defined(STM32H7)
 #define DMA_RAM __attribute__((section(".DMA_RAM")))
@@ -234,6 +228,7 @@
 #define USE_PPM
 #define USE_SERIAL_RX
 #define USE_SERIALRX_CRSF       // Team Black Sheep Crossfire protocol
+#define USE_SERIALRX_GHST       // ImmersionRC Ghost Protocol
 #define USE_SERIALRX_IBUS       // FlySky and Turnigy receivers
 #define USE_SERIALRX_SBUS       // Frsky and Futaba receivers
 #define USE_SERIALRX_SPEKTRUM   // SRXL, DSM2 and DSMX protocol
@@ -265,6 +260,7 @@
 #define USE_DSHOT_DMAR
 #define USE_SERIALRX_FPORT      // FrSky FPort
 #define USE_TELEMETRY_CRSF
+#define USE_TELEMETRY_GHST
 #define USE_TELEMETRY_SRXL
 
 #if ((TARGET_FLASH_SIZE > 256) || (FEATURE_CUT_LEVEL < 12))
@@ -399,4 +395,5 @@
 #define USE_CUSTOM_BOX_NAMES
 #define USE_BATTERY_VOLTAGE_SAG_COMPENSATION
 #define USE_RX_MSP_OVERRIDE
+#define USE_SIMPLIFIED_TUNING
 #endif

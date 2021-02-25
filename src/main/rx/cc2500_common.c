@@ -51,6 +51,7 @@ static IO_t rxLnaEnPin;
 static IO_t antSelPin;
 #endif
 #endif
+
 static int16_t rssiDbm;
 
 uint16_t cc2500getRssiDbm(void)
@@ -102,8 +103,11 @@ void cc2500TxDisable(void)
 
 static bool cc2500SpiDetect(void)
 {
+    cc2500Reset(); // Reset the chip and give it time to wake up
+
     const uint8_t chipPartNum = cc2500ReadReg(CC2500_30_PARTNUM | CC2500_READ_BURST); //CC2500 read registers chip part num
     const uint8_t chipVersion = cc2500ReadReg(CC2500_31_VERSION | CC2500_READ_BURST); //CC2500 read registers chip version
+
     if (chipPartNum == 0x80 && chipVersion == 0x03) {
         return true;
     }
@@ -159,7 +163,6 @@ bool cc2500SpiInit(void)
 
     return true;
 }
-#endif
 
 void cc2500ApplyRegisterConfig(const cc2500RegisterConfigElement_t *configArrayPtr, int configSize)
 {
@@ -169,3 +172,4 @@ void cc2500ApplyRegisterConfig(const cc2500RegisterConfigElement_t *configArrayP
         configArrayPtr++;
     }
 }
+#endif

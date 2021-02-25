@@ -51,13 +51,11 @@ atomic_unittest_SRC := \
 		$(USER_DIR)/build/atomic.c \
 		$(TEST_DIR)/atomic_unittest_c.c
 
-# This test is disabled due to build errors.
-# Its source code is archived in unit/baro_bmp085_unittest.cc.txt
-#
-#baro_bmp085_unittest_SRC := \
-#		$(USER_DIR)/drivers/barometer/barometer_bmp085.c \
-#		$(USER_DIR)/drivers/io.c
+baro_bmp085_unittest_SRC := \
+		$(USER_DIR)/drivers/barometer/barometer_bmp085.c
 
+baro_bmp085_unittest_DEFINES := \
+                USE_BARO_BMP085=
 
 baro_bmp280_unittest_SRC := \
 		$(USER_DIR)/drivers/barometer/barometer_bmp280.c
@@ -188,6 +186,7 @@ motor_output_unittest_SRC := \
 osd_unittest_SRC := \
 		$(USER_DIR)/osd/osd.c \
 		$(USER_DIR)/osd/osd_elements.c \
+		$(USER_DIR)/osd/osd_warnings.c \
 		$(USER_DIR)/common/typeconversion.c \
 		$(USER_DIR)/drivers/display.c \
 		$(USER_DIR)/common/maths.c \
@@ -204,6 +203,7 @@ osd_unittest_DEFINES := \
 link_quality_unittest_SRC := \
 		$(USER_DIR)/osd/osd.c \
 		$(USER_DIR)/osd/osd_elements.c \
+		$(USER_DIR)/osd/osd_warnings.c \
 		$(USER_DIR)/common/typeconversion.c \
 		$(USER_DIR)/drivers/display.c \
 		$(USER_DIR)/drivers/serial.c \
@@ -378,6 +378,7 @@ pid_unittest_SRC :=  \
 		$(USER_DIR)/common/filter.c \
 		$(USER_DIR)/common/maths.c \
 		$(USER_DIR)/drivers/accgyro/gyro_sync.c \
+		$(USER_DIR)/fc/controlrate_profile.c \
 		$(USER_DIR)/fc/runtime_config.c \
 		$(USER_DIR)/flight/pid.c \
 		$(USER_DIR)/flight/pid_init.c \
@@ -425,10 +426,21 @@ rx_spi_spektrum_unittest_DEFINES := \
 GTEST_DIR = ../../lib/test/gtest
 
 # Use clang/clang++ by default
+
+CC  := clang-10
+CXX := clang++-10
+ifeq ($(shell which $(CC) 2>/dev/null),)
+$(info Falling back to 'clang'.)
 CC  := clang
 CXX := clang++
+endif
+
 #CC  := gcc
 #CXX := g++
+
+# These flags are needed for clang 10 (linux / MacOS) to make test work:
+# -Wno-c99-extensions
+# -Wno-reorder
 
 COMMON_FLAGS = \
 	-g \
@@ -440,23 +452,55 @@ COMMON_FLAGS = \
 	-O0 \
 	-DUNIT_TEST \
 	-isystem $(GTEST_DIR)/inc \
-	-MMD -MP
+	-MMD -MP \
+	-Wno-c99-extensions \
+	-Wno-reorder
 
 CC_VERSION = $(shell $(CC) -dumpversion)
 CXX_VERSION = $(shell $(CXX) -dumpversion)
 
 ifeq ($(shell $(CC) -v 2>&1 | grep -q "clang version" && echo "clang"),clang)
+
+# Please revisit versions when new clang version arrive. Supported versions: { Linux: 7 - 11; OSX: 7- 12 }
+# Travis reports CC_VERSION of 4.2.1
+CC_VERSION_MAJOR := $(firstword $(subst ., ,$(CC_VERSION)))
+CC_VERSION_CHECK_MIN := 7
+CC_VERSION_CHECK_MAX := 11
+
+# Added flags for clang 11 (linux) are not backwards compatible:
+# -fcommon
+# -Wno-void-pointer-to-int-cast
+
+ifneq ($(OSFAMILY), macosx)
+ifeq ($(CC_VERSION_MAJOR), 11)
+COMMON_FLAGS += \
+	-fcommon \
+	-Wno-void-pointer-to-int-cast
+endif
+endif
+
+ifeq ($(OSFAMILY), macosx)
+# MacOS comes with Apple's own flavour of clang that does not adhere to the official versioning
+CC_VERSION_CHECK_MAX := 12
+endif
+ifeq ($(shell expr $(CC_VERSION_MAJOR) \< $(CC_VERSION_CHECK_MIN) \| $(CC_VERSION_MAJOR) \> $(CC_VERSION_CHECK_MAX)),1)
+$(error $(CC) $(CC_VERSION) is not supported. The officially supported version of clang is 'clang-10'. If this is not found, 'clang' is used as a fallback. The version of the compiler must be between $(CC_VERSION_CHECK_MIN) and $(CC_VERSION_CHECK_MAX).)
+endif
+
 COMMON_FLAGS += -fblocks
 ifndef CYGWIN
-ifndef MACOSX
+ifneq ($(OSFAMILY), macosx)
 LDFLAGS	     += -lBlocksRuntime
 endif
 endif
 endif
 
+$(info CC version: $(shell $(CC) --version))
+$(info CXX version: $(shell $(CXX) --version))
+
 USE_PTHREAD = YES
 USE_COVERAGE = YES
-ifdef MACOSX
+ifeq ($(OSFAMILY), macosx)
 	USE_PTHREAD =
 endif
 ifdef CYGWIN
@@ -487,7 +531,7 @@ CXX_FLAGS += $(COVERAGE_FLAGS)
 C_FLAGS   += -D_GNU_SOURCE
 
 # Set up the parameter group linker flags according to OS
-ifdef MACOSX
+ifeq ($(OSFAMILY), macosx)
 LDFLAGS  += -Wl,-map,$(OBJECT_DIR)/$@.map
 else
 LDFLAGS  += -Wl,-T,$(TEST_DIR)/pg.ld -Wl,-Map,$(OBJECT_DIR)/$@.map

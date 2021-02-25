@@ -73,9 +73,14 @@ void motorWriteAll(float *values)
 #endif
 }
 
-int motorDeviceCount(void)
+unsigned motorDeviceCount(void)
 {
     return motorDevice->count;
+}
+
+motorVTable_t motorGetVTable(void)
+{
+    return motorDevice->vTable;
 }
 
 // This is not motor generic anymore; should be moved to analog pwm module
@@ -321,9 +326,15 @@ timeMs_t motorGetMotorEnableTimeMs(void)
 #endif
 
 #ifdef USE_DSHOT_BITBANG
-bool isDshotBitbangActive(const motorDevConfig_t *motorDevConfig) {
+bool isDshotBitbangActive(const motorDevConfig_t *motorDevConfig)
+{
     return motorDevConfig->useDshotBitbang == DSHOT_BITBANG_ON ||
         (motorDevConfig->useDshotBitbang == DSHOT_BITBANG_AUTO && motorDevConfig->useDshotTelemetry && motorDevConfig->motorPwmProtocol != PWM_TYPE_PROSHOT1000);
 }
 #endif
+
+float getDigitalIdleOffset(const motorConfig_t *motorConfig)
+{
+    return CONVERT_PARAMETER_TO_PERCENT(motorConfig->digitalIdleOffsetValue * 0.01f);
+}
 #endif // USE_MOTOR
