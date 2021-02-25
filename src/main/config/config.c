@@ -67,6 +67,7 @@
 #include "pg/adc.h"
 #include "pg/beeper.h"
 #include "pg/beeper_dev.h"
+#include "pg/displayport_profiles.h"
 #include "pg/gyrodev.h"
 #include "pg/motor.h"
 #include "pg/pg.h"
@@ -101,7 +102,7 @@ pidProfile_t *currentPidProfile;
 #define DYNAMIC_FILTER_MAX_SUPPORTED_LOOP_TIME HZ_TO_INTERVAL_US(2000)
 
 #define BETAFLIGHT_MAX_SRATE  100
-#define KISS_MAX_SRATE        100
+#define KISS_MAX_SRATE        99
 #define QUICK_MAX_RATE        200
 #define ACTUAL_MAX_RATE       200
 
@@ -577,6 +578,8 @@ static void validateAndFixConfig(void)
             }
 
             break;
+        case RATES_TYPE_RACEFLIGHT:
+            break;   // no range constraint is necessary - allows 0 - 255
         case RATES_TYPE_KISS:
             for (int axis = FD_ROLL; axis <= FD_YAW; axis++) {
                 controlRateProfilesMutable(i)->rates[axis] = constrain(controlRateProfilesMutable(i)->rates[axis], 0, KISS_MAX_SRATE);
@@ -593,6 +596,27 @@ static void validateAndFixConfig(void)
             for (int axis = FD_ROLL; axis <= FD_YAW; axis++) {
                 controlRateProfilesMutable(i)->rates[axis] = constrain(controlRateProfilesMutable(i)->rates[axis], 0, QUICK_MAX_RATE);
             }
+
+            break;
+        }
+    }
+
+    // validate that the minimum battery cell voltage is less than the maximum cell voltage
+    // reset to defaults if not
+    if (batteryConfig()->vbatmincellvoltage >=  batteryConfig()->vbatmaxcellvoltage) {
+        batteryConfigMutable()->vbatmincellvoltage = VBAT_CELL_VOLTAGE_DEFAULT_MIN;
+        batteryConfigMutable()->vbatmaxcellvoltage = VBAT_CELL_VOLTAGE_DEFAULT_MAX;
+    }
+
+    // validate that displayport_msp_serial is referencing a valid UART that actually has MSP enabled
+    if (displayPortProfileMsp()->displayPortSerial != SERIAL_PORT_NONE) {
+        const serialPortConfig_t *portConfig = serialFindPortConfiguration(displayPortProfileMsp()->displayPortSerial);
+        if (!portConfig || !(portConfig->functionMask & FUNCTION_MSP)
+#ifndef USE_MSP_PUSH_OVER_VCP
+            || (portConfig->identifier == SERIAL_PORT_USB_VCP)
+#endif
+            ) {
+            displayPortProfileMspMutable()->displayPortSerial = SERIAL_PORT_NONE;
         }
     }
 }
