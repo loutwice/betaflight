@@ -71,7 +71,7 @@ static FAST_DATA_ZERO_INIT float motorMixRange;
 
 float FAST_DATA_ZERO_INIT motor[MAX_SUPPORTED_MOTORS];
 float motor_disarmed[MAX_SUPPORTED_MOTORS];
-
+static uint8_t altiLimStatus = 0;
 static FAST_DATA_ZERO_INIT int throttleAngleCorrection;
 
 float getMotorMixRange(void)
@@ -487,7 +487,7 @@ FAST_CODE_NOINLINE void mixTable(timeUs_t currentTimeUs)
 
     motorMixer_t * activeMixer = &mixerRuntime.currentMixer[0];
 
-    static uint8_t altiLimStatus = 0;
+
 
 
 #ifdef USE_LAUNCH_CONTROL

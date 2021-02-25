@@ -110,15 +110,17 @@ void renderOsdWarning(char *warningText, bool *blinking, uint8_t *displayAttr)
     }
 
     // Show warning if no altitude limitation applicable
-           if (getThrottleLimitationStatus() == 2) {
-               tfp_sprintf(element->buff, "NO ALTI LIM");
-               SET_BLINK(OSD_WARNINGS);
-               return;
-           } else if(getThrottleLimitationStatus() == 1) {
-               tfp_sprintf(element->buff, "ALTI LIM");
-               SET_BLINK(OSD_WARNINGS);
-               return;
-           }
+            if (getThrottleLimitationStatus() == 2) {
+                tfp_sprintf(warningText, "NO ALTI LIM");
+                *displayAttr = DISPLAYPORT_ATTR_WARNING;
+                *blinking = true;
+                return;
+            } else if(getThrottleLimitationStatus() == 1) {
+                tfp_sprintf(warningText, "ALTI LIM");
+                *displayAttr = DISPLAYPORT_ATTR_WARNING;
+                *blinking = true;
+                return;
+            }
 
 
 #ifdef USE_DSHOT
