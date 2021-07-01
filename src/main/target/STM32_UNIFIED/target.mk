@@ -9,25 +9,38 @@ else
 ifeq ($(TARGET), STM32F7X2)
 F7X2RE_TARGETS += $(TARGET)
 
-else # STM32F745
+else
+ifeq ($(TARGET), STM32F745)
 F7X5XG_TARGETS += $(TARGET)
 
+else
+ifeq ($(TARGET), STM32G47X)
+G47X_TARGETS += $(TARGET)
+
+else # STM32H743
+H743xI_TARGETS += $(TARGET)
+
+endif
+endif
 endif
 endif
 endif
 
-ifeq ($(TARGET), $(filter $(TARGET), STM32F405 STM32F745))
+ifeq ($(TARGET), $(filter $(TARGET), STM32F405 STM32F745 STM32H743))
 # Use a full block (16 kB) of flash for custom defaults - with 1 MB flash we have more than we know how to use anyway
 
 CUSTOM_DEFAULTS_EXTENDED = yes
 endif
 
-
+ifeq ($(TARGET), STM32G47X)
+FEATURES       += VCP SDCARD_SPI ONBOARDFLASH
+else
 FEATURES       += VCP SDCARD_SPI SDCARD_SDIO ONBOARDFLASH
+endif
 
 TARGET_SRC = \
     $(addprefix drivers/accgyro/,$(notdir $(wildcard $(SRC_DIR)/drivers/accgyro/*.c))) \
-    $(ROOT)/lib/main/BoschSensortec/BMI270-Sensor-API/bmi270.c \
+    $(ROOT)/lib/main/BoschSensortec/BMI270-Sensor-API/bmi270_maximum_fifo.c \
     $(addprefix drivers/barometer/,$(notdir $(wildcard $(SRC_DIR)/drivers/barometer/*.c))) \
     $(addprefix drivers/compass/,$(notdir $(wildcard $(SRC_DIR)/drivers/compass/*.c))) \
     drivers/max7456.c \

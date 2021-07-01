@@ -169,17 +169,17 @@
 
 #endif // I2C_FULL_RECONFIGURABILITY
 
-#ifndef I2C1_OVERCLOCK
-#define I2C1_OVERCLOCK false
+#ifndef I2C1_CLOCKSPEED
+#define I2C1_CLOCKSPEED 800
 #endif
-#ifndef I2C2_OVERCLOCK
-#define I2C2_OVERCLOCK false
+#ifndef I2C2_CLOCKSPEED
+#define I2C2_CLOCKSPEED 800
 #endif
-#ifndef I2C3_OVERCLOCK
-#define I2C3_OVERCLOCK false
+#ifndef I2C3_CLOCKSPEED
+#define I2C3_CLOCKSPEED 800
 #endif
-#ifndef I2C4_OVERCLOCK
-#define I2C4_OVERCLOCK false
+#ifndef I2C4_CLOCKSPEED
+#define I2C4_CLOCKSPEED 800
 #endif
 
 // Default values for internal pullup
@@ -636,6 +636,15 @@
 #endif
 #ifndef UART9_RX_DMA_OPT
 #define UART9_RX_DMA_OPT (DMA_OPT_UNUSED)
+#endif
+#endif
+
+#ifdef USE_UART10
+#ifndef UART10_TX_DMA_OPT
+#define UART10_TX_DMA_OPT (DMA_OPT_UNUSED)
+#endif
+#ifndef UART10_RX_DMA_OPT
+#define UART10_RX_DMA_OPT (DMA_OPT_UNUSED)
 #endif
 #endif
 

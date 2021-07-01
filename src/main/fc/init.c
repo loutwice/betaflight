@@ -101,11 +101,9 @@
 #include "io/asyncfatfs/asyncfatfs.h"
 #include "io/beeper.h"
 #include "io/dashboard.h"
-#include "io/displayport_crsf.h"
 #include "io/displayport_frsky_osd.h"
 #include "io/displayport_max7456.h"
 #include "io/displayport_msp.h"
-#include "io/displayport_srxl.h"
 #include "io/flashfs.h"
 #include "io/gimbal.h"
 #include "io/gps.h"
@@ -375,6 +373,10 @@ void init(void)
 
     sdCardAndFSInit();
     initFlags |= SD_INIT_ATTEMPTED;
+
+    if (!sdcard_isInserted()) {
+        failureMode(FAILURE_SDCARD_REQUIRED);
+    }
 
     while (afatfs_getFilesystemState() != AFATFS_FILESYSTEM_STATE_READY) {
         afatfs_poll();
@@ -1009,15 +1011,6 @@ void init(void)
         dashboardEnablePageCycling();
 #endif
     }
-#endif
-
-#if defined(USE_CMS) && defined(USE_SPEKTRUM_CMS_TELEMETRY) && defined(USE_TELEMETRY_SRXL)
-    // Register the srxl Textgen telemetry sensor as a displayport device
-    cmsDisplayPortRegister(displayPortSrxlInit());
-#endif
-
-#if defined(USE_CMS) && defined(USE_CRSF_CMS_TELEMETRY)
-    cmsDisplayPortRegister(displayPortCrsfInit());
 #endif
 
     setArmingDisabled(ARMING_DISABLED_BOOT_GRACE_TIME);

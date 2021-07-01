@@ -78,9 +78,9 @@
 #define UART8_RX_PIN            PE0
 #define UART8_TX_PIN            PE1
 
-#define USE_UART9 // LPUART1
-#define UART9_RX_PIN            PB7 // PA10 (Shared with UART1)
-#define UART9_TX_PIN            PB6 // PA9 (Shared with UART1)
+#define USE_LPUART1
+#define LPUART1_RX_PIN          PB7 // PA10 (Shared with UART1)
+#define LPUART1_TX_PIN          PB6 // PA9 (Shared with UART1)
 
 #define USE_VCP
 
@@ -121,7 +121,7 @@
 #define SPI6_MISO_PIN           NONE
 #define SPI6_MOSI_PIN           NONE
 
-// #define USE_QUADSPI
+#define USE_QUADSPI
 #define USE_QUADSPI_DEVICE_1
 
 #define QUADSPI1_SCK_PIN        NONE // PB2
@@ -224,6 +224,8 @@
 #define USE_FLASH_CHIP
 #define USE_FLASH_M25P16
 #define USE_FLASH_W25M
+#define USE_FLASH_W25Q128FV
+#define USE_FLASH_W25N01G
 #define FLASH_SPI_INSTANCE      NULL
 #define FLASH_CS_PIN            NONE
 #define USE_FLASHFS

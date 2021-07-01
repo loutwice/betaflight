@@ -308,6 +308,7 @@ static const char *mcuTypeNames[] = {
     "H743 (Rev.V)",
     "H7A3",
     "H723/H725",
+    "G474",
 };
 
 static const char *configurationStates[] = { "UNCONFIGURED", "CUSTOM DEFAULTS", "CONFIGURED" };
@@ -678,9 +679,11 @@ static void backupPgConfig(const pgRegistry_t *pg)
     memcpy(pg->copy, pg->address, pg->size);
 }
 
-static void restorePgConfig(const pgRegistry_t *pg)
+static void restorePgConfig(const pgRegistry_t *pg, uint16_t notToRestoreGroupId)
 {
-    memcpy(pg->address, pg->copy, pg->size);
+    if (!notToRestoreGroupId || pgN(pg) != notToRestoreGroupId) {
+        memcpy(pg->address, pg->copy, pg->size);
+    }
 }
 
 static void backupConfigs(void)
@@ -689,7 +692,6 @@ static void backupConfigs(void)
         return;
     }
 
-    // make copies of configs to do differencing
     PG_FOREACH(pg) {
         backupPgConfig(pg);
     }
@@ -697,14 +699,14 @@ static void backupConfigs(void)
     configIsInCopy = true;
 }
 
-static void restoreConfigs(void)
+static void restoreConfigs(uint16_t notToRestoreGroupId)
 {
     if (!configIsInCopy) {
         return;
     }
 
     PG_FOREACH(pg) {
-        restorePgConfig(pg);
+        restorePgConfig(pg, notToRestoreGroupId);
     }
 
     configIsInCopy = false;
@@ -4324,6 +4326,7 @@ bool hasCustomDefaults(void)
 static void cliDefaults(const char *cmdName, char *cmdline)
 {
     bool saveConfigs = true;
+    uint16_t parameterGroupId = 0;
 #if defined(USE_CUSTOM_DEFAULTS)
     bool useCustomDefaults = true;
 #elif defined(USE_CUSTOM_DEFAULTS_ADDRESS)
@@ -4333,36 +4336,68 @@ static void cliDefaults(const char *cmdName, char *cmdline)
     }
 #endif
 
-    if (isEmpty(cmdline)) {
-    } else if (strncasecmp(cmdline, "nosave", 6) == 0) {
-        saveConfigs = false;
-#if defined(USE_CUSTOM_DEFAULTS)
-    } else if (strncasecmp(cmdline, "bare", 4) == 0) {
-        useCustomDefaults = false;
-    } else if (strncasecmp(cmdline, "show", 4) == 0) {
-        if (hasCustomDefaults()) {
-            char *customDefaultsPtr = customDefaultsStart;
-            while (customDefaultsHasNext(customDefaultsPtr)) {
-                if (*customDefaultsPtr != '\n') {
-                    cliPrintf("%c", *customDefaultsPtr++);
-                } else {
-                    cliPrintLinefeed();
-                    customDefaultsPtr++;
-                }
+    char *saveptr;
+    char* tok = strtok_r(cmdline, " ", &saveptr);
+    int index = 0;
+    bool expectParameterGroupId = false;
+    while (tok != NULL) {
+        if (expectParameterGroupId) {
+            parameterGroupId = atoi(tok);
+            expectParameterGroupId = false;
+
+            if (!parameterGroupId) {
+                cliShowParseError(cmdName);
+                
+                return;
             }
+        } else if (strcasestr(tok, "group_id")) {
+            expectParameterGroupId = true;
+        } else if (strcasestr(tok, "nosave")) {
+            saveConfigs = false;
+#if defined(USE_CUSTOM_DEFAULTS)
+        } else if (strcasestr(tok, "bare")) {
+            useCustomDefaults = false;
+        } else if (strcasestr(tok, "show")) {
+            if (index != 0) {
+                cliShowParseError(cmdName);
+            } else if (hasCustomDefaults()) {
+                char *customDefaultsPtr = customDefaultsStart;
+                while (customDefaultsHasNext(customDefaultsPtr)) {
+                    if (*customDefaultsPtr != '\n') {
+                        cliPrintf("%c", *customDefaultsPtr++);
+                    } else {
+                        cliPrintLinefeed();
+                        customDefaultsPtr++;
+                    }
+                }
+            } else {
+                cliPrintError(cmdName, "NO CUSTOM DEFAULTS FOUND");
+            }
+
+            return;
+#endif
         } else {
-            cliPrintError(cmdName, "NO CUSTOM DEFAULTS FOUND");
+            cliShowParseError(cmdName);
+
+            return;
         }
 
-        return;
-#endif
-    } else {
-        cliPrintError(cmdName, "INVALID OPTION");
+        index++;
+        tok = strtok_r(NULL, " ", &saveptr);
+    }
+
+    if (expectParameterGroupId) {
+        cliShowParseError(cmdName);
 
         return;
     }
 
-    cliPrintHashLine("resetting to defaults");
+    if (parameterGroupId) {
+        cliPrintLinef("\r\n# resetting group %d to defaults", parameterGroupId);
+        backupConfigs();
+    } else {
+        cliPrintHashLine("resetting to defaults");
+    }
 
     resetConfig();
 
@@ -4379,6 +4414,10 @@ static void cliDefaults(const char *cmdName, char *cmdline)
         cliProcessCustomDefaults(false);
     }
 #endif
+
+    if (parameterGroupId) {
+        restoreConfigs(parameterGroupId);
+    }
 
     if (saveConfigs && tryPrepareSave(cmdName)) {
         writeUnmodifiedConfigToEEPROM();
@@ -4441,7 +4480,7 @@ STATIC_UNIT_TESTED void cliGet(const char *cmdName, char *cmdline)
         }
     }
 
-    restoreConfigs();
+    restoreConfigs(0);
 
     pidProfileIndexToUse = CURRENT_PROFILE_INDEX;
     rateProfileIndexToUse = CURRENT_PROFILE_INDEX;
@@ -4664,7 +4703,7 @@ STATIC_UNIT_TESTED void cliSet(const char *cmdName, char *cmdline)
     }
 }
 
-const char *getMcuTypeById(mcuTypeId_e id)
+static const char *getMcuTypeById(mcuTypeId_e id)
 {
     if (id < MCU_TYPE_UNKNOWN) {
         return mcuTypeNames[id];
@@ -4839,7 +4878,11 @@ static void cliTasks(const char *cmdName, char *cmdline)
 
 #ifndef MINIMAL_CLI
     if (systemConfig()->task_statistics) {
+#if defined(USE_LATE_TASK_STATISTICS)
+        cliPrintLine("Task list             rate/hz  max/us  avg/us maxload avgload  total/ms   late    run reqd/us");
+#else
         cliPrintLine("Task list             rate/hz  max/us  avg/us maxload avgload  total/ms");
+#endif
     } else {
         cliPrintLine("Task list");
     }
@@ -4857,9 +4900,18 @@ static void cliTasks(const char *cmdName, char *cmdline)
                 averageLoadSum += averageLoad;
             }
             if (systemConfig()->task_statistics) {
+#if defined(USE_LATE_TASK_STATISTICS)
+                cliPrintLinef("%6d %7d %7d %4d.%1d%% %4d.%1d%% %9d %6d %6d %7d",
+                        taskFrequency, taskInfo.maxExecutionTimeUs, taskInfo.averageExecutionTimeUs,
+                        maxLoad/10, maxLoad%10, averageLoad/10, averageLoad%10,
+                        taskInfo.totalExecutionTimeUs / 1000,
+                        taskInfo.lateCount, taskInfo.runCount, taskInfo.execTime);
+#else
                 cliPrintLinef("%6d %7d %7d %4d.%1d%% %4d.%1d%% %9d",
                         taskFrequency, taskInfo.maxExecutionTimeUs, taskInfo.averageExecutionTimeUs,
-                        maxLoad/10, maxLoad%10, averageLoad/10, averageLoad%10, taskInfo.totalExecutionTimeUs / 1000);
+                        maxLoad/10, maxLoad%10, averageLoad/10, averageLoad%10,
+                        taskInfo.totalExecutionTimeUs / 1000);
+#endif
             } else {
                 cliPrintLinef("%6d", taskFrequency);
             }
@@ -4943,7 +4995,7 @@ static void cliRcSmoothing(const char *cmdName, char *cmdline)
     UNUSED(cmdline);
     rcSmoothingFilter_t *rcSmoothingData = getRcSmoothingData();
     cliPrint("# RC Smoothing Type: ");
-    if (rxConfig()->rc_smoothing_type == RC_SMOOTHING_TYPE_FILTER) {
+    if (rxConfig()->rc_smoothing_mode) {
         cliPrintLine("FILTER");
         if (rcSmoothingAutoCalculate()) {
             const uint16_t avgRxFrameUs = rcSmoothingData->averageFrameTimeUs;
@@ -4954,31 +5006,26 @@ static void cliRcSmoothing(const char *cmdName, char *cmdline)
                 cliPrintLinef("%d.%03dms", avgRxFrameUs / 1000, avgRxFrameUs % 1000);
             }
         }
-        cliPrintLinef("# Input filter type: %s", lookupTables[TABLE_RC_SMOOTHING_INPUT_TYPE].values[rcSmoothingData->inputFilterType]);
-        cliPrintf("# Active input cutoff: %dhz ", rcSmoothingData->inputCutoffFrequency);
-        if (rcSmoothingData->inputCutoffSetting == 0) {
-            cliPrintLine("(auto)");
-        } else {
+        cliPrintf("# Active setpoint cutoff: %dhz ", rcSmoothingData->setpointCutoffFrequency);
+        if (rcSmoothingData->setpointCutoffSetting) {
             cliPrintLine("(manual)");
-        }
-        cliPrintf("# Derivative filter type: %s", lookupTables[TABLE_RC_SMOOTHING_DERIVATIVE_TYPE].values[rcSmoothingData->derivativeFilterType]);
-        if (rcSmoothingData->derivativeFilterTypeSetting == RC_SMOOTHING_DERIVATIVE_AUTO) {
-            cliPrintLine(" (auto)");
         } else {
-            cliPrintLinefeed();
+            cliPrintLine("(auto)");
         }
-        cliPrintf("# Active derivative cutoff: %dhz (", rcSmoothingData->derivativeCutoffFrequency);
-        if (rcSmoothingData->derivativeFilterType == RC_SMOOTHING_DERIVATIVE_OFF) {
-            cliPrintLine("off)");
+        cliPrintf("# Active FF cutoff: %dhz ", rcSmoothingData->feedforwardCutoffFrequency);
+        if (rcSmoothingData->ffCutoffSetting) {
+            cliPrintLine("(manual)");
         } else {
-            if (rcSmoothingData->derivativeCutoffSetting == 0) {
-                cliPrintLine("auto)");
-            } else {
-                cliPrintLine("manual)");
-            }
+            cliPrintLine("(auto)");
+        }
+        cliPrintf("# Active throttle cutoff: %dhz ", rcSmoothingData->throttleCutoffFrequency);
+        if (rcSmoothingData->ffCutoffSetting) {
+            cliPrintLine("(manual)");
+        } else {
+            cliPrintLine("(auto)");
         }
     } else {
-        cliPrintLine("INTERPOLATION");
+        cliPrintLine("OFF");
     }
 }
 #endif // USE_RC_SMOOTHING_FILTER
@@ -6322,7 +6369,7 @@ static void printConfig(const char *cmdName, char *cmdline, bool doDiff)
 #endif
 
     // restore configs from copies
-    restoreConfigs();
+    restoreConfigs(0);
 }
 
 static void cliDump(const char *cmdName, char *cmdline)
@@ -6427,9 +6474,9 @@ const clicmd_t cmdTable[] = {
         CLI_COMMAND_DEF("color", "configure colors", NULL, cliColor),
 #endif
 #if defined(USE_CUSTOM_DEFAULTS)
-    CLI_COMMAND_DEF("defaults", "reset to defaults and reboot", "[nosave|bare|show]", cliDefaults),
+    CLI_COMMAND_DEF("defaults", "reset to defaults and reboot", "{show} {nosave} {bare} {group_id <id>}", cliDefaults),
 #else
-    CLI_COMMAND_DEF("defaults", "reset to defaults and reboot", "[nosave|show]", cliDefaults),
+    CLI_COMMAND_DEF("defaults", "reset to defaults and reboot", "{nosave}", cliDefaults),
 #endif
     CLI_COMMAND_DEF("diff", "list configuration changes from default", "[master|profile|rates|hardware|all] {defaults|bare}", cliDiff),
 #ifdef USE_RESOURCE_MGMT
